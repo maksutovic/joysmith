@@ -37,6 +37,34 @@
 
 ---
 
+## Interface Contract Registry (Multi-Component Systems)
+
+> Add this section for monorepos or distributed systems with cross-component interfaces.
+
+All cross-component interface specifications live in `/docs/contracts/`:
+
+| Contract | File | Components Affected |
+|---|---|---|
+| [Interface A] | `docs/contracts/[name].md` | [Component X], [Component Y] |
+
+These are the **single source of truth**. Component docs should reference them, not duplicate them. See `templates/INTERFACE_CONTRACTS_TEMPLATE.md` for the full template.
+
+## Cross-Component Decision Gates (Multi-Component Systems)
+
+### Protocol/Interface Changes
+1. Update the canonical contract spec in `/docs/contracts/` FIRST
+2. Get approval from all affected component owners
+3. Implement in dependency order: producer → bridge → consumer
+4. Support both old and new formats during transition
+
+### Coordinated Deployments
+1. Document current versions of all components
+2. Deploy in order of risk: server → firmware → client apps
+3. Verify at each step before proceeding
+4. See `/docs/DEPLOYMENT_RUNBOOK.md` for detailed procedures
+
+---
+
 ## Customization Guide
 
 **Per-project additions to ALWAYS:**

@@ -1,8 +1,21 @@
 # Joysmith Roadmap: Level 4 → 4.5 → 5
 
-## Current State: Level 4
+## Current State: Level 4 (as of 2026-03-23)
 
 We write specs, Claude executes, we run scenarios manually, we feed failures back.
+
+### Projects at Level 4
+- **Pie** — both repos fully upgraded, all scenarios passing
+- **Sarama CollarPrototype** — harness upgrade complete (boundary framework, interface contracts, cross-component skills, deployment runbook). Branch: `maksu/joysmith-implementation`
+
+### Template Library (validated across projects)
+- CLAUDE.md template (with behavioral boundaries)
+- AGENTS.md template (for Codex/multi-agent harnesses)
+- Boundary framework (Always/Ask First/Never + contract registry)
+- Interface contracts template (for multi-component systems)
+- Assessment template (5-level scoring rubric)
+- Design spec + implementation plan templates
+- 7 reusable Claude Code skills (session-start, session-end, new-feature, quick-fix, cross-component-change, system-health-check, deploy-coordinated)
 
 ## Level 4.5: Automate the Feedback Loop
 

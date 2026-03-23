@@ -60,9 +60,13 @@ This is NOT a code library. It's a methodology repo — the playbook for buildin
 │       ├── pie-regression-fix-plan.md
 │       └── pie-level5-harness-plan.md
 ├── templates/                   # Reusable harness infrastructure
+│   ├── CLAUDE_MD_TEMPLATE.md    # Full CLAUDE.md template with behavioral boundaries
+│   ├── AGENTS_MD_TEMPLATE.md    # AGENTS.md template for Codex/multi-agent harnesses
 │   ├── DESIGN_SPEC_TEMPLATE.md
 │   ├── IMPLEMENTATION_PLAN_TEMPLATE.md
-│   ├── BOUNDARY_FRAMEWORK.md
+│   ├── BOUNDARY_FRAMEWORK.md    # Always/Ask First/Never + contract registry
+│   ├── INTERFACE_CONTRACTS_TEMPLATE.md  # For multi-component interface specs
+│   ├── ASSESSMENT_TEMPLATE.md   # Project assessment against 5-level framework
 │   └── claude-kit/
 │       └── skills/              # Reusable Claude Code skills
 ├── scenarios/                   # External scenario test patterns
@@ -105,8 +109,9 @@ This is NOT a code library. It's a methodology repo — the playbook for buildin
 
 ## Current State
 
-- **Our level:** 4 (Developer as PM) across 7 active projects
-- **Strongest areas:** Session management (150+ notes), spec quality ceiling, layered documentation
-- **Biggest gaps:** Automated validation, behavioral boundaries, custom skills/hooks
-- **Pilot project:** Pie (both repos) — fully upgraded, all scenarios passing
-- **Next:** Apply templates to remaining 5 projects, automate the feedback loop (Level 4.5)
+- **Our level:** 4 (Developer as PM) across active projects
+- **Strongest areas:** Session management (150+ notes), spec quality ceiling, layered documentation, boundary frameworks, interface contracts
+- **Biggest gaps:** Automated validation (external scenarios), CI/CD integration
+- **Completed upgrades:** Pie (both repos, all scenarios passing), Sarama CollarPrototype (boundary framework, contracts, skills, runbook)
+- **Template library:** 7 templates + 7 reusable skills, validated across 2 project upgrades
+- **Next:** Apply templates to remaining projects, build external scenario test suites, automate the feedback loop (Level 4.5)
