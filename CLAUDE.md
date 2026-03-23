@@ -53,8 +53,12 @@ This is NOT a code library. It's a methodology repo — the playbook for buildin
 │   └── dark-factory-research.md # Master research synthesis
 ├── assessments/                 # Project-level assessments
 │   └── harness-assessment.md    # Cross-project analysis
-├── journeys/                    # Project upgrade stories
-│   └── pie-journey.md           # Pie: from broken to all green
+├── projects/                    # Project-specific work
+│   └── pie/                     # Pie project upgrade
+│       ├── journey.md           # Pie: from broken to all green
+│       ├── pie-regression-fix-design.md
+│       ├── pie-regression-fix-plan.md
+│       └── pie-level5-harness-plan.md
 ├── templates/                   # Reusable harness infrastructure
 │   ├── DESIGN_SPEC_TEMPLATE.md
 │   ├── IMPLEMENTATION_PLAN_TEMPLATE.md
