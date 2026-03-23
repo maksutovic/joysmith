@@ -213,77 +213,69 @@ Layer 3: Hardware-in-the-Loop (manual trigger, real devices)
 
 The server is the easiest to test and the relay server is the biggest risk (3,000+ LOC, zero tests).
 
-**Off-the-shelf tools:**
+**Key off-the-shelf tools discovered:**
 
-| Tool | Purpose | Effort |
-|---|---|---|
-| **pytest + pytest-asyncio** | Async test fixtures for TCP relay server | Low — already used for intelligence service |
-| **Hypothesis** | Property-based testing for binary protocol fuzzing | Medium — generates random valid/invalid packets |
-| **aiohttp test client** | SSE stream testing for intelligence service | Low — built into aiohttp |
-| **Docker Compose** | Spin up full server stack for integration tests | Medium — all services in one `docker-compose.yml` |
+| Tool | Purpose | Effort | URL |
+|---|---|---|---|
+| **pytest-asyncio** | Async test fixtures for TCP relay | Low | pypi.org/project/pytest-asyncio |
+| **Hypothesis** | Property-based protocol fuzzing — generates random valid/invalid packets, tests roundtrip properties | Medium | hypothesis.works |
+| **construct** | Declarative binary protocol parser/builder — define packet format once, use for both parsing and building | Low | construct.readthedocs.io |
+| **httpx-sse** | Async SSE client for testing intelligence service events | Low | github.com/florimondmanca/httpx-sse |
+| **respx** | Mock httpx requests (for Gemini API mocking in tests) | Low | lundberg.github.io/respx |
 
 **What to build:**
 
-1. **Fake collar simulator** (`scripts/fake_collar.py`) — Python script that connects to relay port 8554 and sends valid binary protocol packets (video frames, emotion events, battery status, audio chunks, distance updates, identity). This already partially exists.
+1. **Binary protocol library** (using `construct`) — Define all 6 packet types declaratively. One definition serves both parsing and building. Test properties with Hypothesis: `parse(serialize(packet)) == packet`, corrupted CRC always rejected, parser recovers after garbage bytes.
 
-2. **Relay server test suite** (`tests/test_relay_server.py`) — async tests for:
-   - Per-client queue overflow (backpressure)
-   - Stream routing (SUB commands, auto-subscribe)
-   - Protocol state machine (text commands)
-   - Multi-client broadcast
-   - Estimated: ~400 lines, 6-8 hours
+2. **Fake collar simulator** — Python asyncio TCP client that sends valid binary protocol packets to the relay. Parameterizable: valid packets, corrupted CRC, truncated, out-of-order. This is the **single highest-value testing investment** for Level 4.5.
 
-3. **SSE scenario tests** — validate intelligence service event flow:
-   - Collar connects → emotion fires → Gemini translates → SSE client receives bark event
-   - SSE reconnection with Last-Event-ID replay
-   - Calm timer fires when no emotion detected
+3. **Relay server test suite** (~400 lines) — async tests for queue overflow/backpressure, stream routing (SUB, auto-subscribe, UUID binding), text commands, multi-client broadcast, disconnect handling.
+
+4. **SSE scenario tests** — validate intelligence service event flow: emotion → Gemini translation → bark event, SSE reconnection with Last-Event-ID replay, calm timer, credential failure handling.
 
 ### iOS Testing (Medium ROI, Strategic)
 
-iOS testing splits into two categories: things that need hardware and things that don't.
+iOS testing splits into two categories: things that need hardware and things that don't. The research uncovered one game-changing tool.
+
+**CoreBluetoothMock (Nordic Semiconductor)** — The single most impactful addition. Drop-in replacement for CoreBluetooth that runs entirely on simulator. Define a `CBMPeripheralSpec` that mimics the collar's GATT profile, and all BLE tests run in CI without hardware. URL: github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock
 
 **What can run on simulator (no hardware):**
 
 | Tool | Purpose | Effort |
 |---|---|---|
-| **xcodebuild test** | Run XCTest from command line | Low — standard Xcode tooling |
-| **swift-snapshot-testing** | Visual regression testing for UI | Medium — capture reference images |
-| **Mock SSE server** | Test BarkEventClient parsing without real server | Low — simple Python script |
+| **xcodebuild test** (CLI) | Run XCTest suites from command line | Low |
+| **CoreBluetoothMock** | BLE testing without collar — connection, commands, mode switching | Medium |
+| **Swifter/Embassy** | Mock SSE server for BarkEventClient testing | Low |
+| **swift-snapshot-testing** | Visual regression of emotion displays, onboarding | Low |
+| **Maestro** (YAML flows) | AI-agent-friendly E2E UI testing — no code, just YAML | Low-Medium |
+| **CoreML on simulator** | Model loading + inference correctness validation | Low |
 
-**What we can unit test without hardware:**
-- BarkEventClient SSE event parsing (JSON → model objects)
-- EmotionStateManager state transitions
-- JpegStreamClient binary protocol parsing
-- Onboarding flow logic
+**Maestro** (maestro.dev) deserves special mention: it's YAML-based E2E testing that an AI agent can write and iterate on without understanding XCUITest APIs. Example: `tapOn: "Get Started"`, `assertVisible: "Welcome"`. CLI output is clean pass/fail.
 
-**What still needs real hardware:**
-- BLE pairing and mode switching
-- Camera + video upscaling pipeline
-- Audio playback through speakers
-- WiFi direct mode connection
+**What still needs real hardware:** BLE radio (actual advertising, interference), camera + video upscaling, audio playback, WiFi direct mode.
 
-**Strategy:** Build the unit test suite for network/data layer (no hardware needed), accept that BLE/camera tests remain manual (Layer 3).
+**CI requirement:** A Mac with Xcode is mandatory for iOS testing. Options: GitHub Actions macOS runners (~$0.08/min), self-hosted Mac Mini (~$600 one-time), or MacStadium (~$50-150/month).
 
 ### Firmware Testing (Complex, Protocol-First)
 
-Firmware is the hardest to test automatically. But we don't need to test everything — we need to test the **interfaces**.
+Firmware is the hardest to test automatically. The research identified practical approaches that don't require emulating the full microcontroller.
 
-**What we can test without hardware:**
+**Key tools discovered:**
 
-| Approach | What It Tests | Effort |
-|---|---|---|
-| **Binary protocol validator** | Packet format, CRC-16, field ranges | Low — pure Python, no hardware |
-| **MicroPython Unix port** | Logic in collar_logic.py (state transitions, packet assembly) | Medium — need to stub hardware APIs |
-| **Pre-recorded audio fixtures** | Emotion detection pipeline (MFCC → TFLite) | Medium — need reference samples + expected outputs |
+| Tool | What It Tests | Hardware Needed? | Effort |
+|---|---|---|---|
+| **MicroPython Unix port** | Pure logic (state machines, protocol parsing, CRC, config) | No | Low |
+| **construct** library | Binary protocol roundtrip testing | No | Low |
+| **TFLite runtime on host** | ML model inference with pre-recorded audio | No | Low |
+| **librosa** (Python) | MFCC feature extraction validation vs C module | No | Medium |
+| **Bleak** (Python BLE) | BLE service testing from host machine | Yes (collar + BLE adapter) | Low |
+| **mpremote + pytest** | On-device function execution, flash-and-test | Yes (USB) | Low |
 
-**What still needs real hardware:**
-- WiFi AP/STA switching (the routing bug)
-- BLE advertising and connection
-- Audio DMA callbacks under real-time constraints
-- IMU sampling at 100Hz
-- Memory pressure with camera + audio + WiFi running simultaneously
+**The Golioth model** (gold standard for embedded CI): Raspberry Pi as self-hosted GitHub Actions runner, collar connected via USB, pytest fixtures handle flash/connect/reset. They run 530+ HIL tests per PR.
 
-**Strategy:** Build protocol-level tests and host-side logic tests. Hardware-specific tests remain the existing soak tests (already good — 2hr/12hr/60hr presets) triggered manually.
+**What still needs real hardware:** WiFi AP/STA routing bug, audio DMA timing, IMU under real sensor noise, memory pressure with all peripherals running. The existing soak tests (2hr/12hr/60hr) cover this well.
+
+**Key insight from Fitbit's Golden Gate project:** They invested heavily in making the firmware side simulatable — abstracting BLE transport behind IP-based protocols so CI can run protocol-level tests without hardware. The pattern: test the protocol on host, test the hardware integration on device.
 
 ### The Testing Pyramid for Hardware Products
 
@@ -531,6 +523,7 @@ All artifacts from this upgrade:
 |---|---|
 | `projects/sarama/assessment.md` | Full assessment with component ratings |
 | `projects/sarama/journey.md` | This document |
+| `projects/sarama/testing-research.md` | Detailed research: tools, approaches, priority order for automated testing |
 | `templates/CLAUDE_MD_TEMPLATE.md` | New — full CLAUDE.md template |
 | `templates/AGENTS_MD_TEMPLATE.md` | New — AGENTS.md template |
 | `templates/INTERFACE_CONTRACTS_TEMPLATE.md` | New — multi-component contract template |
