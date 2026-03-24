@@ -1,6 +1,6 @@
-# Joysmith
+# Joycraft
 
-**What:** A CLI + Claude Code plugin that scaffolds and upgrades AI development harnesses. `npx joysmith init` installs skills, templates, boundaries, and documentation structure into any project, taking it from Level 1 to Level 4 on Dan Shapiro's 5 Levels of Vibe Coding.
+**What:** A CLI + Claude Code plugin that scaffolds and upgrades AI development harnesses. `npx joycraft init` installs skills, templates, boundaries, and documentation structure into any project, taking it from Level 1 to Level 4 on Dan Shapiro's 5 Levels of Vibe Coding.
 
 **Component:** npm package (CLI) + Claude Code skills | **Updated:** 2026-03-23
 
@@ -32,19 +32,19 @@
 ## Architecture
 
 ```
-Joysmith/
+Joycraft/
 ├── src/                    # CLI + core logic (TypeScript)
 │   ├── cli.ts              # Entry point — argument parsing (init, upgrade)
 │   ├── init.ts             # Scaffold logic — dirs, files, CLAUDE.md
 │   ├── upgrade.ts          # Upgrade logic — diff, prompt, apply
 │   ├── detect.ts           # Stack detection from manifest files
-│   ├── improve-claude-md.ts # Merge Joysmith sections into existing CLAUDE.md
+│   ├── improve-claude-md.ts # Merge Joycraft sections into existing CLAUDE.md
 │   ├── agents-md.ts        # Generate AGENTS.md for Codex
-│   ├── version.ts          # Version tracking (.joysmith-version)
+│   ├── version.ts          # Version tracking (.joycraft-version)
 │   ├── skills/             # Installable skill files (copied to .claude/skills/)
-│   │   ├── joysmith.md     # Main entry — assess + route
-│   │   ├── joysmith-assess.md
-│   │   ├── joysmith-upgrade.md
+│   │   ├── tune.md         # Main entry — assess + route
+│   │   ├── tune-assess.md
+│   │   ├── tune-upgrade.md
 │   │   ├── new-feature.md
 │   │   ├── decompose.md
 │   │   └── session-end.md
@@ -57,8 +57,8 @@ Joysmith/
 │   ├── agents-md.test.ts
 │   └── fixtures/           # Minimal manifest files for each stack
 ├── docs/
-│   ├── briefs/             # Feature briefs for Joysmith itself
-│   └── specs/              # Atomic specs for Joysmith itself
+│   ├── briefs/             # Feature briefs for Joycraft itself
+│   └── specs/              # Atomic specs for Joycraft itself
 ├── package.json
 ├── tsconfig.json
 ├── CLAUDE.md               # You are here
@@ -68,7 +68,7 @@ Joysmith/
 ### Key Data Flow
 
 ```
-npx joysmith init
+npx joycraft init
   → detectStack() reads manifest files → StackInfo
   → scaffold dirs (docs/briefs, docs/specs, docs/discoveries, etc.)
   → copy skills → .claude/skills/
@@ -77,7 +77,7 @@ npx joysmith init
   → generate AGENTS.md
   → print summary + next steps
 
-/joysmith (inside Claude Code)
+/tune (inside Claude Code)
   → read CLAUDE.md, check dirs, check skills
   → score 7 dimensions
   → route: scaffold | assess + upgrade | ready
@@ -90,11 +90,11 @@ npx joysmith init
 | File | Purpose |
 |------|---------|
 | `src/detect.ts` | Stack detection — pure function, no side effects |
-| `src/init.ts` | Main scaffolding logic — the core of `npx joysmith init` |
+| `src/init.ts` | Main scaffolding logic — the core of `npx joycraft init` |
 | `src/improve-claude-md.ts` | Merge logic for existing CLAUDE.md files — most complex logic |
 | `templates/` | Source-of-truth for all templates — changes here propagate to users via upgrade |
 | `templates/claude-kit/skills/` | Source-of-truth for all skills |
-| `docs/specs/` | Atomic specs for building Joysmith itself |
+| `docs/specs/` | Atomic specs for building Joycraft itself |
 | `docs/briefs/2026-03-23-joysmith-cli-plugin.md` | Feature Brief — the full vision |
 
 ---
@@ -136,7 +136,7 @@ Read the relevant atomic spec in docs/specs/
 
 ## Common Gotchas
 
-1. **Templates use project-relative paths.** Never reference `/Users/...` or Joysmith repo paths in templates or skills. They get copied into user projects where those paths don't exist.
+1. **Templates use project-relative paths.** Never reference `/Users/...` or Joycraft repo paths in templates or skills. They get copied into user projects where those paths don't exist.
 2. **CLAUDE.md merge is the hardest problem.** Improving an existing CLAUDE.md without destroying content requires section-level parsing. When in doubt, append rather than modify.
 3. **Skills must be self-contained.** A skill installed to `.claude/skills/` can't import from other files. All necessary context must be inline in the markdown.
 4. **Test against real project structures.** The fixtures in `tests/fixtures/` should mirror real-world manifest files, not minimal stubs.
