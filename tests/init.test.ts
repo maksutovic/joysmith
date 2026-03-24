@@ -1,0 +1,211 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { init } from '../src/init';
+
+function createTmpDir(): string {
+  const dir = join(tmpdir(), `joysmith-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function cleanup(dir: string): void {
+  rmSync(dir, { recursive: true, force: true });
+}
+
+describe('init', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = createTmpDir();
+    return () => cleanup(tmpDir);
+  });
+
+  describe('empty directory', () => {
+    it('creates all directories, CLAUDE.md, skills, and templates', async () => {
+      await init(tmpDir, { force: false });
+
+      // docs subdirectories
+      expect(existsSync(join(tmpDir, 'docs', 'briefs'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'specs'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'discoveries'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'contracts'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'decisions'))).toBe(true);
+
+      // CLAUDE.md
+      expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true);
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('## Behavioral Boundaries');
+      expect(claude).toContain('## Development Workflow');
+      expect(claude).toContain('### ALWAYS');
+      expect(claude).toContain('### ASK FIRST');
+      expect(claude).toContain('### NEVER');
+
+      // Skills
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith-assess.md'))).toBe(true);
+
+      // Templates
+      expect(existsSync(join(tmpDir, 'docs', 'templates', 'ATOMIC_SPEC_TEMPLATE.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'templates', 'FEATURE_BRIEF_TEMPLATE.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'templates', 'IMPLEMENTATION_PLAN_TEMPLATE.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'templates', 'BOUNDARY_FRAMEWORK.md'))).toBe(true);
+    });
+  });
+
+  describe('directory with existing CLAUDE.md', () => {
+    it('improves CLAUDE.md without destroying content', async () => {
+      const existingContent = '# My Project\n\nThis is my project description.\n\n## Custom Section\n\nMy custom content here.\n';
+      writeFileSync(join(tmpDir, 'CLAUDE.md'), existingContent);
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      // Preserves existing content
+      expect(claude).toContain('# My Project');
+      expect(claude).toContain('This is my project description.');
+      expect(claude).toContain('## Custom Section');
+      expect(claude).toContain('My custom content here.');
+      // Adds missing sections
+      expect(claude).toContain('## Behavioral Boundaries');
+      expect(claude).toContain('## Development Workflow');
+    });
+
+    it('does not duplicate sections that already exist', async () => {
+      const existingContent = '# My Project\n\n## Behavioral Boundaries\n\nMy custom boundaries.\n';
+      writeFileSync(join(tmpDir, 'CLAUDE.md'), existingContent);
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      // Only one Behavioral Boundaries section
+      const matches = claude.match(/## Behavioral Boundaries/g);
+      expect(matches).toHaveLength(1);
+      // But still adds other missing sections
+      expect(claude).toContain('## Development Workflow');
+    });
+  });
+
+  describe('running init twice', () => {
+    it('second run skips existing files', async () => {
+      await init(tmpDir, { force: false });
+      const firstClaude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      const firstSkill = readFileSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'), 'utf-8');
+
+      // Run again
+      await init(tmpDir, { force: false });
+      const secondClaude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      const secondSkill = readFileSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'), 'utf-8');
+
+      // Files should be identical
+      expect(secondClaude).toBe(firstClaude);
+      expect(secondSkill).toBe(firstSkill);
+    });
+  });
+
+  describe('--force flag', () => {
+    it('overwrites existing files', async () => {
+      // First init
+      await init(tmpDir, { force: false });
+
+      // Modify a skill file
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'), 'custom content');
+
+      // Init with force
+      await init(tmpDir, { force: true });
+
+      const skill = readFileSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'), 'utf-8');
+      expect(skill).not.toBe('custom content');
+      expect(skill).toContain('Joysmith');
+    });
+
+    it('regenerates CLAUDE.md with force', async () => {
+      await init(tmpDir, { force: false });
+      writeFileSync(join(tmpDir, 'CLAUDE.md'), 'totally replaced content');
+
+      await init(tmpDir, { force: true });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('## Behavioral Boundaries');
+      expect(claude).not.toBe('totally replaced content');
+    });
+  });
+
+  describe('stack detection in generated CLAUDE.md', () => {
+    it('includes Node.js commands for a Node project', async () => {
+      // Create a package.json to trigger Node detection
+      writeFileSync(join(tmpDir, 'package.json'), JSON.stringify({
+        name: 'test-project',
+        scripts: { build: 'tsc', test: 'vitest', lint: 'eslint .' },
+        devDependencies: { typescript: '^5.0.0', vitest: '^1.0.0' },
+      }));
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('npm run build');
+      expect(claude).toContain('npm run test');
+      expect(claude).toContain('npm run lint');
+      expect(claude).toContain('node');
+    });
+
+    it('includes Go commands for a Go project', async () => {
+      writeFileSync(join(tmpDir, 'go.mod'), 'module example.com/test\n\ngo 1.21\n');
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('go build');
+      expect(claude).toContain('go test');
+    });
+
+    it('includes Rust commands for a Rust project', async () => {
+      writeFileSync(join(tmpDir, 'Cargo.toml'), '[package]\nname = "test"\nversion = "0.1.0"\n');
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('cargo build');
+      expect(claude).toContain('cargo test');
+    });
+
+    it('includes Python commands for a Python project', async () => {
+      writeFileSync(join(tmpDir, 'pyproject.toml'), '[tool.poetry]\nname = "test"\n');
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('poetry');
+    });
+  });
+
+  describe('partial harness', () => {
+    it('handles some dirs existing already', async () => {
+      // Pre-create some dirs
+      mkdirSync(join(tmpDir, 'docs', 'specs'), { recursive: true });
+      mkdirSync(join(tmpDir, '.claude', 'skills'), { recursive: true });
+
+      await init(tmpDir, { force: false });
+
+      // All dirs should exist
+      expect(existsSync(join(tmpDir, 'docs', 'briefs'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'specs'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'discoveries'))).toBe(true);
+      // Skills still get installed
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'))).toBe(true);
+    });
+
+    it('preserves existing user skills', async () => {
+      mkdirSync(join(tmpDir, '.claude', 'skills'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'my-custom-skill.md'), 'my skill');
+
+      await init(tmpDir, { force: false });
+
+      // User skill is preserved
+      expect(readFileSync(join(tmpDir, '.claude', 'skills', 'my-custom-skill.md'), 'utf-8')).toBe('my skill');
+      // Joysmith skills are added
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'))).toBe(true);
+    });
+  });
+});
