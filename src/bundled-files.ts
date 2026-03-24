@@ -643,9 +643,50 @@ These are safe, additive operations. Apply them without asking:
 - Copy missing templates to \`docs/templates/\`
 - Create AGENTS.md if it doesn't exist
 
+### Git Autonomy Preference
+
+Before applying Behavioral Boundaries to CLAUDE.md, ask the user ONE question:
+
+> How autonomous should git operations be?
+> 1. **Cautious** — commits freely, asks before pushing or opening PRs *(good for learning the workflow)*
+> 2. **Autonomous** — commits, pushes to branches, and opens PRs without asking *(good for spec-driven development)*
+
+Based on their answer, use the appropriate git rules in the Behavioral Boundaries section:
+
+**If Cautious (default):**
+\`\`\`
+### ASK FIRST
+- Pushing to remote
+- Creating or merging pull requests
+- Any destructive git operation (force-push, reset --hard, branch deletion)
+
+### NEVER
+- Push directly to main/master without approval
+- Amend commits that have been pushed
+\`\`\`
+
+**If Autonomous:**
+\`\`\`
+### ALWAYS
+- Push to feature branches after each commit
+- Open a PR when all specs in a feature are complete
+- Use descriptive branch names: feature/spec-name
+
+### ASK FIRST
+- Merging PRs to main/master
+- Any destructive git operation (force-push, reset --hard, branch deletion)
+
+### NEVER
+- Push directly to main/master (always use feature branches + PR)
+- Amend commits that have been pushed to remote
+\`\`\`
+
+This is the ONLY question asked during the upgrade flow. Everything else is batch-applied.
+
 ### Tier 2: Apply and Show Diff (do it, then report)
 These modify important files but are additive (append-only). Apply them, then show what changed so the user can review. Git is the undo button.
 - Add missing sections to CLAUDE.md (Behavioral Boundaries, Development Workflow, Getting Started with Joycraft, Key Files, Common Gotchas)
+- Use the git autonomy preference from above when generating the Behavioral Boundaries section
 - Draft section content from the actual codebase — not generic placeholders. Read the project's real rules, real commands, real structure.
 - Only append — never modify or reformat existing content
 

@@ -51,20 +51,26 @@ function generateBoundariesSection(): string {
 
 ### ALWAYS
 - Run tests and type-check before committing
-- Commit after completing each discrete task
+- Use \`verb: concise message\` format for commits
+- Commit after completing each discrete task (atomic commits)
+- Stage specific files by name (not \`git add -A\` or \`git add .\`)
 - Follow existing code patterns and style
 
 ### ASK FIRST
+- Pushing to remote
+- Creating or merging pull requests
 - Adding new dependencies
 - Modifying database schema or data models
 - Changing authentication or authorization flows
-- Any destructive operation (deleting files, force-pushing)
+- Any destructive git operation (force-push, reset --hard, branch deletion)
 
 ### NEVER
-- Push to main branch without explicit approval
+- Push directly to main/master without approval
+- Commit .env files, secrets, or credentials
+- Use --no-verify to skip hooks
+- Amend commits that have been pushed
 - Skip type-checking or linting
-- Commit code that doesn't build
-- Hardcode secrets, API keys, or credentials`;
+- Commit code that doesn't build`;
 }
 
 function generateWorkflowSection(stack: StackInfo): string {
