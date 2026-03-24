@@ -2,399 +2,6 @@
 // and we can't read files from the package at runtime.
 
 export const SKILLS: Record<string, string> = {
-  'joysmith.md': `---
-name: joysmith
-description: Assess your project's AI development harness — detect state, score dimensions, recommend upgrades
----
-
-# Joysmith — Project Harness Assessment
-
-You are evaluating this project's AI development harness. Follow these steps precisely.
-
-## Step 1: Detect Harness State
-
-Check the following and note what exists:
-
-1. **CLAUDE.md** — Read it if it exists. Check whether it contains meaningful content (not just a project name or generic README).
-2. **Key directories** — Check for: \`docs/specs/\`, \`docs/briefs/\`, \`docs/discoveries/\`, \`docs/templates/\`, \`.claude/skills/\`
-3. **Boundary framework** — Look for \`Always\`, \`Ask First\`, and \`Never\` sections in CLAUDE.md (or similar behavioral constraints).
-4. **Skills infrastructure** — Check \`.claude/skills/\` for installed skill files.
-5. **Test configuration** — Look for test commands in package.json, pyproject.toml, Cargo.toml, Makefile, or CI config files.
-
-## Step 2: Classify and Route
-
-Based on what you found, classify the project into one of three states:
-
-### State A: No Harness
-**Trigger:** No CLAUDE.md, OR CLAUDE.md exists but has no behavioral boundaries, no spec references, and no structured sections.
-
-**Action:** Tell the user:
-- Their project has no AI development harness (or a minimal one)
-- Recommend running \`npx joysmith init\` to scaffold one
-- Briefly explain what Joysmith will set up: CLAUDE.md with boundaries, spec/brief templates, skills, and documentation structure
-- Stop here — do not run the full assessment
-
-### State B: Partial Harness
-**Trigger:** CLAUDE.md exists with some structured content (boundaries, commands, or architecture), but not all 7 dimensions score 3.5 or above.
-
-**Action:**
-- Tell the user you've detected a partial harness and will run a detailed assessment
-- Invoke the detailed assessment by running \`/joysmith-assess\`
-
-### State C: Full Harness
-**Trigger:** All of the following are true:
-- CLAUDE.md has Always/Ask First/Never boundaries
-- \`docs/specs/\` exists and contains spec files
-- \`docs/briefs/\` exists
-- \`.claude/skills/\` exists with skill files
-- Test commands are configured
-- Documentation structure is in place
-- Knowledge capture mechanism exists (docs/discoveries/ or similar)
-
-**Action:** Tell the user:
-- Their project harness is solid across all dimensions
-- Provide a quick summary of what's well-configured
-- Offer to start work: "Your harness is ready. What would you like to work on? You can use \`/new-feature\` to start a new feature, or \`/decompose\` to break down a large task."
-
-## Quick Scoring Rubric (for routing decisions)
-
-Use these presence checks to quickly estimate scores. You do NOT need to do deep analysis here — that's what \`/joysmith-assess\` is for.
-
-| Dimension | Score 1 (None) | Score 3 (Partial) | Score 5 (Complete) |
-|-----------|---------------|-------------------|-------------------|
-| Spec Quality | No specs directory | Specs exist but informal | Atomic specs with acceptance criteria |
-| Spec Granularity | N/A | Large multi-session specs | Each spec fits one session |
-| Behavioral Boundaries | No CLAUDE.md | CLAUDE.md without boundaries | Always/Ask First/Never sections |
-| Skills & Hooks | No .claude/ directory | .claude/ exists, few skills | Multiple skills, hooks configured |
-| Documentation | No docs/ directory | docs/ exists with some content | Structured docs/ with templates |
-| Knowledge Capture | No discovery tracking | Ad-hoc notes | Structured discoveries directory |
-| Testing & Validation | No test config | Tests exist, no CI | Tests + CI + validation commands in CLAUDE.md |
-
-If the average quick score is 3.5 or above, classify as State C. Otherwise, classify as State B.
-
-## Edge Cases
-
-- **Not a git repo:** Note this to the user. Joysmith works best in a git repository. Recommend initializing one first.
-- **CLAUDE.md is just a README:** Treat as State A — the file exists but isn't a harness.
-- **Non-Joysmith skills already installed:** Acknowledge them. Do not suggest replacing them — suggest Joysmith skills as additions.
-- **Monorepo:** Assess the root CLAUDE.md. Note if component-level CLAUDE.md files exist in subdirectories.`,
-
-  'joysmith-assess.md': `---
-name: joysmith-assess
-description: Deep assessment of project harness quality — score 7 dimensions with evidence and upgrade plan
----
-
-# Joysmith — Detailed Harness Assessment
-
-You are performing a deep assessment of this project's AI development harness. Score each of the 7 dimensions below on a 1-5 scale, with specific evidence and recommendations.
-
-## Instructions
-
-1. Read CLAUDE.md thoroughly
-2. Explore the project structure: check docs/, .claude/, test config, CI config
-3. Score each dimension using the rubrics below
-4. Write the full assessment to \`docs/joysmith-assessment.md\`
-5. Display the assessment in the conversation as well
-
-## Dimension 1: Spec Quality
-
-**What to check:** Look in \`docs/specs/\` for specification files.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No specs directory or no spec files |
-| 2 | Specs exist but are informal notes or TODOs |
-| 3 | Specs have structure (sections, some criteria) but lack consistency |
-| 4 | Specs are structured with clear acceptance criteria and constraints |
-| 5 | Atomic specs: self-contained, acceptance criteria, constraints, edge cases, affected files |
-
-**Evidence to capture:** Number of specs found, example of best/worst spec, whether acceptance criteria are present.
-
-## Dimension 2: Spec Granularity
-
-**What to check:** Examine spec scope — can each spec be completed in a single coding session?
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No specs |
-| 2 | Specs cover entire features or epics (multi-day work) |
-| 3 | Specs are feature-sized (multi-session but bounded) |
-| 4 | Most specs are session-sized with clear scope |
-| 5 | All specs are atomic — one session, one concern, clear done state |
-
-## Dimension 3: Behavioral Boundaries
-
-**What to check:** Read CLAUDE.md for explicit behavioral constraints.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No CLAUDE.md or no behavioral guidance |
-| 2 | CLAUDE.md exists with general instructions but no structured boundaries |
-| 3 | Some boundaries exist but not organized as Always/Ask First/Never |
-| 4 | Always/Ask First/Never sections present with reasonable coverage |
-| 5 | Comprehensive boundaries covering code style, testing, deployment, dependencies, and dangerous operations |
-
-## Dimension 4: Skills & Hooks
-
-**What to check:** Look in \`.claude/skills/\` for skill files.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No .claude/ directory |
-| 2 | .claude/ exists but empty or minimal |
-| 3 | A few skills installed, no hooks |
-| 4 | Multiple relevant skills, basic hooks |
-| 5 | Comprehensive skill set covering workflow (new feature, decompose, session end), hooks for validation |
-
-## Dimension 5: Documentation
-
-**What to check:** Examine \`docs/\` directory structure and content.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No docs/ directory |
-| 2 | docs/ exists with ad-hoc files |
-| 3 | Some structure (subdirectories) but inconsistent |
-| 4 | Structured docs/ with templates and clear organization |
-| 5 | Full documentation structure: briefs/, specs/, templates/, architecture docs, and CLAUDE.md references them |
-
-## Dimension 6: Knowledge Capture
-
-**What to check:** Look for mechanisms to capture discoveries, decisions, and session notes.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No knowledge capture mechanism |
-| 2 | Ad-hoc notes in random locations |
-| 3 | A dedicated notes or decisions directory exists |
-| 4 | Structured discoveries/decisions directory with some entries |
-| 5 | Active knowledge capture: discoveries directory with entries, session-end workflow, decision log |
-
-## Dimension 7: Testing & Validation
-
-**What to check:** Look for test configuration, CI setup, and validation commands in CLAUDE.md.
-
-| Score | Criteria |
-|-------|----------|
-| 1 | No test configuration |
-| 2 | Test framework installed but few/no tests |
-| 3 | Tests exist with reasonable coverage |
-| 4 | Tests + CI pipeline configured |
-| 5 | Tests + CI + validation commands documented in CLAUDE.md + scenario/integration tests |
-
-## Output Format
-
-Write the assessment in this format (both to file and conversation):
-
-\`\`\`markdown
-# Joysmith Assessment — [Project Name]
-
-**Date:** [today's date]
-**Overall Level:** [1-5, based on average score]
-
-## Scores
-
-| Dimension | Score | Summary |
-|-----------|-------|---------|
-| Spec Quality | X/5 | [one-line summary] |
-| Spec Granularity | X/5 | [one-line summary] |
-| Behavioral Boundaries | X/5 | [one-line summary] |
-| Skills & Hooks | X/5 | [one-line summary] |
-| Documentation | X/5 | [one-line summary] |
-| Knowledge Capture | X/5 | [one-line summary] |
-| Testing & Validation | X/5 | [one-line summary] |
-
-**Average:** X.X/5
-
-## Detailed Findings
-
-### [Dimension Name] — X/5
-**Evidence:** [what was found]
-**Gap:** [what's missing]
-**Recommendation:** [specific action]
-
-[repeat for each dimension]
-
-## Upgrade Plan
-
-To reach Level [current + 1], complete these steps:
-
-1. [Most impactful action] — addresses [dimension]
-2. [Second action] — addresses [dimension]
-3. [Third action] — addresses [dimension]
-
-## Available Joysmith Skills
-
-These skills are installed and can help with upgrades:
-- \`/new-feature\` — Start a structured feature with brief and specs
-- \`/decompose\` — Break a large task into atomic specs
-- \`/session-end\` — Capture discoveries and learnings
-- \`/joysmith-upgrade\` — Apply specific upgrades to your harness
-\`\`\`
-
-Write this assessment to \`docs/joysmith-assessment.md\`. Create the \`docs/\` directory if it doesn't exist.`,
-
-  'new-feature.md': `---
-name: new-feature
-description: Guided feature development — interview the user, produce a Feature Brief, then decompose into atomic specs
----
-
-# New Feature Workflow
-
-You are starting a new feature. Follow this process in order. Do not skip steps.
-
-## Phase 1: Interview
-
-Interview the user about what they want to build. Let them talk — your job is to listen, then sharpen.
-
-**Why:** A thorough interview prevents wasted implementation time. Most failed features fail because the problem wasn't understood, not because the code was wrong.
-
-**Ask about:**
-- What problem does this solve? Who is affected?
-- What does "done" look like? How will a user know this works?
-- What are the hard constraints? (business rules, tech limitations, deadlines)
-- What is explicitly NOT in scope? (push hard on this — aggressive scoping is key)
-- Are there edge cases or error conditions we need to handle?
-- What existing code/patterns should this follow?
-
-**Interview technique:**
-- Let the user "yap" — don't interrupt their flow of ideas
-- After they finish, play back your understanding: "So if I'm hearing you right..."
-- Ask clarifying questions that force specificity: "When you say 'handle errors,' what should the user see?"
-- Push toward testable statements: "How would we verify that works?"
-
-Keep asking until you can fill out a Feature Brief. When ready, say:
-"I have enough context. Let me write the Feature Brief for your review."
-
-## Phase 2: Feature Brief
-
-Write a Feature Brief to \`docs/briefs/YYYY-MM-DD-feature-name.md\`. Create the \`docs/briefs/\` directory if it doesn't exist.
-
-**Why:** The brief is the single source of truth for what we're building. It prevents scope creep and gives every spec a shared reference point.
-
-Use this structure:
-
-\\\`\\\`\\\`markdown
-# [Feature Name] — Feature Brief
-
-> **Date:** YYYY-MM-DD
-> **Project:** [project name]
-> **Status:** Interview | Decomposing | Specs Ready | In Progress | Complete
-
----
-
-## Vision
-What are we building and why? The full picture in 2-4 paragraphs.
-
-## User Stories
-- As a [role], I want [capability] so that [benefit]
-
-## Hard Constraints
-- MUST: [constraint that every spec must respect]
-- MUST NOT: [prohibition that every spec must respect]
-
-## Out of Scope
-- NOT: [tempting but deferred]
-
-## Decomposition
-| # | Spec Name | Description | Dependencies | Est. Size |
-|---|-----------|-------------|--------------|-----------|
-| 1 | [verb-object] | [one sentence] | None | [S/M/L] |
-
-## Execution Strategy
-- [ ] Sequential (specs have chain dependencies)
-- [ ] Parallel worktrees (specs are independent)
-- [ ] Mixed
-
-## Success Criteria
-- [ ] [End-to-end behavior 1]
-- [ ] [No regressions in existing features]
-\\\`\\\`\\\`
-
-If \`docs/templates/FEATURE_BRIEF_TEMPLATE.md\` exists, reference it for the full template with additional guidance.
-
-Present the brief to the user. Focus review on:
-- "Does the decomposition match how you think about this?"
-- "Is anything in scope that shouldn't be?"
-- "Are the specs small enough? Can each be described in one sentence?"
-
-Iterate until approved.
-
-## Phase 3: Generate Atomic Specs
-
-For each row in the decomposition table, create a self-contained spec file at \`docs/specs/YYYY-MM-DD-spec-name.md\`. Create the \`docs/specs/\` directory if it doesn't exist.
-
-**Why:** Each spec must be understandable WITHOUT reading the Feature Brief. This prevents the "Curse of Instructions" — no spec should require holding the entire feature in context. Copy relevant context into each spec.
-
-Use this structure for each spec:
-
-\\\`\\\`\\\`markdown
-# [Verb + Object] — Atomic Spec
-
-> **Parent Brief:** \\\`docs/briefs/YYYY-MM-DD-feature-name.md\\\`
-> **Status:** Ready
-> **Date:** YYYY-MM-DD
-> **Estimated scope:** [1 session / N files / ~N lines]
-
----
-
-## What
-One paragraph — what changes when this spec is done?
-
-## Why
-One sentence — what breaks or is missing without this?
-
-## Acceptance Criteria
-- [ ] [Observable behavior]
-- [ ] Build passes
-- [ ] Tests pass
-
-## Constraints
-- MUST: [hard requirement]
-- MUST NOT: [hard prohibition]
-
-## Affected Files
-| Action | File | What Changes |
-|--------|------|-------------|
-
-## Approach
-Strategy, data flow, key decisions. Name one rejected alternative.
-
-## Edge Cases
-| Scenario | Expected Behavior |
-|----------|------------------|
-\\\`\\\`\\\`
-
-If \`docs/templates/ATOMIC_SPEC_TEMPLATE.md\` exists, reference it for the full template with additional guidance.
-
-## Phase 4: Hand Off for Execution
-
-Tell the user:
-\\\`\\\`\\\`
-Feature Brief and [N] atomic specs are ready.
-
-Specs:
-1. [spec-name] — [one sentence] [S/M/L]
-2. [spec-name] — [one sentence] [S/M/L]
-...
-
-Recommended execution:
-- [Parallel/Sequential/Mixed strategy]
-- Estimated: [N] sessions total
-
-To execute: Start a fresh session per spec. Each session should:
-1. Read the spec
-2. Implement
-3. Run /session-end to capture discoveries
-4. Commit and PR
-
-Ready to start?
-\\\`\\\`\\\`
-
-**Why:** A fresh session for execution produces better results. The interview session has too much context noise — a clean session with just the spec is more focused.
-
-You can also use \`/decompose\` to re-decompose a brief if the breakdown needs adjustment.`,
-
   'decompose.md': `---
 name: decompose
 description: Break a feature brief into atomic specs — small, testable, independently executable units
@@ -458,10 +65,10 @@ For each approved row, create \`docs/specs/YYYY-MM-DD-spec-name.md\`. Create the
 
 Use this structure:
 
-\\\`\\\`\\\`markdown
+\`\`\`markdown
 # [Verb + Object] — Atomic Spec
 
-> **Parent Brief:** \\\`docs/briefs/YYYY-MM-DD-feature-name.md\\\` (or "standalone")
+> **Parent Brief:** \`docs/briefs/YYYY-MM-DD-feature-name.md\` (or "standalone")
 > **Status:** Ready
 > **Date:** YYYY-MM-DD
 > **Estimated scope:** [1 session / N files / ~N lines]
@@ -493,7 +100,7 @@ Strategy, data flow, key decisions. Name one rejected alternative.
 ## Edge Cases
 | Scenario | Expected Behavior |
 |----------|------------------|
-\\\`\\\`\\\`
+\`\`\`
 
 If \`docs/templates/ATOMIC_SPEC_TEMPLATE.md\` exists, reference it for the full template with additional guidance.
 
@@ -511,7 +118,7 @@ Update the Feature Brief's Execution Strategy section with the plan (if a brief 
 ## Step 7: Hand Off
 
 Tell the user:
-\\\`\\\`\\\`
+\`\`\`
 Decomposition complete:
 - [N] atomic specs created in docs/specs/
 - [N] can run in parallel, [N] are sequential
@@ -523,7 +130,501 @@ To execute:
 - Each session should end with /session-end to capture discoveries
 
 Ready to start execution?
-\\\`\\\`\\\``,
+\`\`\`
+`,
+
+  'joysmith-upgrade.md': `---
+name: joysmith-upgrade
+description: Apply assessment upgrades — read the latest assessment and fix identified gaps in your project harness
+---
+
+# Joysmith — Apply Assessment Upgrades
+
+You are applying recommended upgrades to this project's AI development harness. Follow these steps precisely.
+
+## Step 1: Read the Assessment
+
+Look for \`docs/joysmith-assessment.md\`. If it does not exist, tell the user:
+
+> No assessment found. Run \`/joysmith\` first to assess your project's harness, then come back here.
+
+Stop and do not continue.
+
+If the file exists, read it and check the date. If the assessment date is more than 7 days old, or if there have been significant commits since the assessment was written, warn the user:
+
+> This assessment may be stale — it was written on [date] and there have been changes since. Would you like to re-assess first with \`/joysmith\`, or proceed with these recommendations?
+
+If the user wants to re-assess, stop and let them run \`/joysmith\`. Otherwise, continue.
+
+## Step 2: Parse Recommendations
+
+Extract every gap and recommendation from the assessment. Group them into these categories:
+
+1. **Missing directories** — \`docs/specs/\`, \`docs/briefs/\`, \`docs/discoveries/\`, \`docs/templates/\`, \`.claude/skills/\`
+2. **Missing CLAUDE.md sections** — Behavioral Boundaries (Always/Ask First/Never), Architecture, Key Files, Development Workflow, Common Gotchas
+3. **Missing skills** — Skill files that should be in \`.claude/skills/\`
+4. **Missing templates** — Template files that should be in \`docs/templates/\`
+5. **Testing gaps** — Missing test configuration, CI setup, or validation commands in CLAUDE.md
+6. **Knowledge capture gaps** — Missing \`docs/discoveries/\`, session-end workflow, decision log
+
+## Step 3: Check What Already Exists
+
+Before applying anything, check the current state of every item. Skip anything that already exists. If ALL recommendations have already been applied, tell the user:
+
+> Nothing to upgrade — your harness is current with the latest assessment recommendations.
+
+Stop and do not continue.
+
+## Step 4: Apply Upgrades (in priority order)
+
+Apply fixes in this order — high-impact, low-effort first:
+
+### Priority 1: Create Missing Directories
+
+For each missing directory, create it. No confirmation needed — directories are safe to create.
+
+- \`docs/specs/\`
+- \`docs/briefs/\`
+- \`docs/discoveries/\`
+- \`docs/templates/\`
+- \`.claude/skills/\`
+
+After creating, briefly note what was created.
+
+### Priority 2: Add Missing CLAUDE.md Sections
+
+**This requires user confirmation for every change.**
+
+For each missing section identified in the assessment:
+
+1. Draft the section content based on what you know about the project (read the codebase to gather real information — do not use placeholder text)
+2. Show the user the exact content that will be added
+3. Ask: "I'm going to add a [section name] section to CLAUDE.md. OK?"
+4. If the user approves, append the section to CLAUDE.md — do NOT replace or rewrite existing content
+5. If the user declines, note it was skipped and move on
+
+**Important:** Never overwrite or reformat existing CLAUDE.md content. Only append new sections or merge into existing sections.
+
+### Priority 3: Install Missing Skills
+
+For each missing skill identified in the assessment, copy the skill file to \`.claude/skills/\`. Available Joysmith skills:
+
+- \`joysmith.md\` — Assessment, scoring, and upgrade recommendations
+- \`joysmith-upgrade.md\` — This skill (apply upgrades)
+- \`new-feature.md\` — Structured feature development with brief and specs
+- \`decompose.md\` — Break large tasks into atomic specs
+- \`session-end.md\` — End-of-session knowledge capture
+
+Note which skills were installed.
+
+### Priority 4: Copy Missing Templates
+
+For each missing template identified in the assessment, copy it to \`docs/templates/\`. Standard Joysmith templates include:
+
+- \`spec.md\` — Atomic spec template
+- \`brief.md\` — Feature brief template
+- \`discovery.md\` — Discovery/learning capture template
+
+Note which templates were copied.
+
+### Priority 5: Suggest Testing & Knowledge Capture Improvements
+
+For testing and knowledge capture gaps, do NOT make changes automatically. Instead, present specific suggestions:
+
+- If test commands are missing from CLAUDE.md, draft an addition and ask the user
+- If CI is not configured, suggest what to add and where
+- If knowledge capture workflows are missing, recommend \`/session-end\` and explain how it works
+
+## Step 5: Re-assess and Report
+
+After all upgrades are applied (or skipped), re-evaluate each of the 7 dimensions against the current state of the project. Use the same scoring rubric from \`/joysmith\`.
+
+Display a before/after comparison:
+
+\`\`\`
+## Upgrade Results
+
+| Dimension              | Before | After | Change |
+|------------------------|--------|-------|--------|
+| Spec Quality           | X/5    | X/5   | +X     |
+| Spec Granularity       | X/5    | X/5   | +X     |
+| Behavioral Boundaries  | X/5    | X/5   | +X     |
+| Skills & Hooks         | X/5    | X/5   | +X     |
+| Documentation          | X/5    | X/5   | +X     |
+| Knowledge Capture      | X/5    | X/5   | +X     |
+| Testing & Validation   | X/5    | X/5   | +X     |
+
+**Previous Level:** X — **New Level:** X
+
+### What Changed
+- [list each change that was applied]
+
+### What Was Skipped
+- [list each recommendation the user declined, if any]
+
+### Remaining Gaps
+- [list anything still below 3.5 that wasn't addressed]
+\`\`\`
+
+Update \`docs/joysmith-assessment.md\` with the new scores and today's date.
+
+## Edge Cases
+
+- **Assessment file missing:** Tell the user to run \`/joysmith\` first. Do not proceed.
+- **Assessment is stale:** Warn and offer to re-assess before proceeding.
+- **All recommendations already applied:** Report "nothing to upgrade" and stop.
+- **User declines a recommendation:** Skip it, continue to the next, and include it in the "What Was Skipped" section of the report.
+- **CLAUDE.md does not exist at all:** Create it with the recommended sections, but ask the user first: "No CLAUDE.md found. I'll create one with [list of sections]. OK?"
+- **Non-Joysmith content in CLAUDE.md:** Preserve it exactly as-is. Only append or merge Joysmith sections — never remove or reformat existing content.
+`,
+
+  'joysmith.md': `---
+name: joysmith
+description: Assess your project's AI development harness — detect state, score 7 dimensions, recommend upgrades, and offer to apply fixes
+---
+
+# Joysmith — Project Harness Assessment
+
+You are evaluating this project's AI development harness. Follow these steps in order.
+
+## Step 1: Detect Harness State
+
+Check the following and note what exists:
+
+1. **CLAUDE.md** — Read it if it exists. Check whether it contains meaningful content (not just a project name or generic README).
+2. **Key directories** — Check for: \`docs/specs/\`, \`docs/briefs/\`, \`docs/discoveries/\`, \`docs/templates/\`, \`.claude/skills/\`
+3. **Boundary framework** — Look for \`Always\`, \`Ask First\`, and \`Never\` sections in CLAUDE.md (or similar behavioral constraints under any heading).
+4. **Skills infrastructure** — Check \`.claude/skills/\` for installed skill files.
+5. **Test configuration** — Look for test commands in package.json, pyproject.toml, Cargo.toml, Makefile, or CI config files.
+
+## Step 2: Route Based on State
+
+### If No Harness (no CLAUDE.md, or CLAUDE.md is just a README with no structured sections):
+
+Tell the user:
+- Their project has no AI development harness
+- Recommend running \`npx joysmith init\` to scaffold one
+- Briefly explain what it sets up: CLAUDE.md with boundaries, spec/brief templates, skills, documentation structure
+- **Stop here** — do not run the full assessment on a bare project
+
+### If Harness Exists (CLAUDE.md has structured content — boundaries, commands, architecture, or domain rules):
+
+Continue to Step 3 for the full assessment.
+
+## Step 3: Score 7 Dimensions
+
+Read CLAUDE.md thoroughly. Explore the project structure. Score each dimension on a 1-5 scale with specific evidence.
+
+### Dimension 1: Spec Quality
+
+Look in \`docs/specs/\` for specification files.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No specs directory or no spec files |
+| 2 | Specs exist but are informal notes or TODOs |
+| 3 | Specs have structure (sections, some criteria) but lack consistency |
+| 4 | Specs are structured with clear acceptance criteria and constraints |
+| 5 | Atomic specs: self-contained, acceptance criteria, constraints, edge cases, affected files |
+
+**Evidence:** Number of specs found, example of best/worst, whether acceptance criteria are present.
+
+### Dimension 2: Spec Granularity
+
+Can each spec be completed in a single coding session?
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No specs |
+| 2 | Specs cover entire features or epics |
+| 3 | Specs are feature-sized (multi-session but bounded) |
+| 4 | Most specs are session-sized with clear scope |
+| 5 | All specs are atomic — one session, one concern, clear done state |
+
+### Dimension 3: Behavioral Boundaries
+
+Read CLAUDE.md for explicit behavioral constraints.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No CLAUDE.md or no behavioral guidance |
+| 2 | CLAUDE.md exists with general instructions but no structured boundaries |
+| 3 | Some boundaries exist but not organized as Always/Ask First/Never |
+| 4 | Always/Ask First/Never sections present with reasonable coverage |
+| 5 | Comprehensive boundaries covering code style, testing, deployment, dependencies, and dangerous operations |
+
+**Important:** Projects may have strong rules under different headings (e.g., "Critical Rules", "Constraints"). Give credit for substance over format — a project with clear, enforced rules scores higher than one with empty Always/Ask First/Never sections.
+
+### Dimension 4: Skills & Hooks
+
+Look in \`.claude/skills/\` for skill files. Check for hooks configuration.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No .claude/ directory |
+| 2 | .claude/ exists but empty or minimal |
+| 3 | A few skills installed, no hooks |
+| 4 | Multiple relevant skills, basic hooks |
+| 5 | Comprehensive skills covering workflow, hooks for validation |
+
+### Dimension 5: Documentation
+
+Examine \`docs/\` directory structure and content.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No docs/ directory |
+| 2 | docs/ exists with ad-hoc files |
+| 3 | Some structure (subdirectories) but inconsistent |
+| 4 | Structured docs/ with templates and clear organization |
+| 5 | Full structure: briefs/, specs/, templates/, architecture docs, referenced from CLAUDE.md |
+
+### Dimension 6: Knowledge Capture
+
+Look for discoveries, decisions, and session notes.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No knowledge capture mechanism |
+| 2 | Ad-hoc notes in random locations |
+| 3 | A dedicated notes or decisions directory exists |
+| 4 | Structured discoveries/decisions directory with entries |
+| 5 | Active capture: discoveries with entries, session-end workflow, decision log |
+
+### Dimension 7: Testing & Validation
+
+Look for test config, CI setup, and validation commands.
+
+| Score | Criteria |
+|-------|----------|
+| 1 | No test configuration |
+| 2 | Test framework installed but few/no tests |
+| 3 | Tests exist with reasonable coverage |
+| 4 | Tests + CI pipeline configured |
+| 5 | Tests + CI + validation commands in CLAUDE.md + scenario tests |
+
+## Step 4: Write Assessment
+
+Write the assessment to \`docs/joysmith-assessment.md\` AND display it in the conversation. Use this format:
+
+\`\`\`markdown
+# Joysmith Assessment — [Project Name]
+
+**Date:** [today's date]
+**Overall Level:** [1-5, based on average score]
+
+## Scores
+
+| Dimension | Score | Summary |
+|-----------|-------|---------|
+| Spec Quality | X/5 | [one-line summary] |
+| Spec Granularity | X/5 | [one-line summary] |
+| Behavioral Boundaries | X/5 | [one-line summary] |
+| Skills & Hooks | X/5 | [one-line summary] |
+| Documentation | X/5 | [one-line summary] |
+| Knowledge Capture | X/5 | [one-line summary] |
+| Testing & Validation | X/5 | [one-line summary] |
+
+**Average:** X.X/5
+
+## Detailed Findings
+
+### [Dimension Name] — X/5
+**Evidence:** [specific files, paths, counts found]
+**Gap:** [what's missing]
+**Recommendation:** [specific action to improve]
+
+## Upgrade Plan
+
+To reach Level [current + 1], complete these steps:
+1. [Most impactful action] — addresses [dimension] (X -> Y)
+2. [Next action] — addresses [dimension] (X -> Y)
+[up to 5 actions, ordered by impact]
+\`\`\`
+
+## Step 5: Offer to Apply Fixes
+
+After presenting the assessment, ask the user:
+
+"Would you like me to start applying these upgrades? I'll go through each recommendation and ask before making changes to your CLAUDE.md or project files."
+
+If the user agrees, work through the upgrade plan one item at a time:
+- For each recommendation, explain what you'll do and ask for confirmation
+- **Always ask before modifying CLAUDE.md** — show what you'll add
+- Creating missing directories is safe to do without asking
+- Installing missing templates is safe if the directory is empty
+- After applying changes, briefly re-score the affected dimensions to show improvement
+
+## Edge Cases
+
+- **Not a git repo:** Note this. Joysmith works best in a git repo.
+- **CLAUDE.md is just a README:** Treat as "no harness."
+- **Non-Joysmith skills already installed:** Acknowledge them. Do not replace — suggest additions.
+- **Monorepo:** Assess the root CLAUDE.md. Note if component-level CLAUDE.md files exist.
+- **Project has rules under non-standard headings:** Give credit. Suggest reformatting as Always/Ask First/Never but acknowledge the rules are there.
+`,
+
+  'new-feature.md': `---
+name: new-feature
+description: Guided feature development — interview the user, produce a Feature Brief, then decompose into atomic specs
+---
+
+# New Feature Workflow
+
+You are starting a new feature. Follow this process in order. Do not skip steps.
+
+## Phase 1: Interview
+
+Interview the user about what they want to build. Let them talk — your job is to listen, then sharpen.
+
+**Why:** A thorough interview prevents wasted implementation time. Most failed features fail because the problem wasn't understood, not because the code was wrong.
+
+**Ask about:**
+- What problem does this solve? Who is affected?
+- What does "done" look like? How will a user know this works?
+- What are the hard constraints? (business rules, tech limitations, deadlines)
+- What is explicitly NOT in scope? (push hard on this — aggressive scoping is key)
+- Are there edge cases or error conditions we need to handle?
+- What existing code/patterns should this follow?
+
+**Interview technique:**
+- Let the user "yap" — don't interrupt their flow of ideas
+- After they finish, play back your understanding: "So if I'm hearing you right..."
+- Ask clarifying questions that force specificity: "When you say 'handle errors,' what should the user see?"
+- Push toward testable statements: "How would we verify that works?"
+
+Keep asking until you can fill out a Feature Brief. When ready, say:
+"I have enough context. Let me write the Feature Brief for your review."
+
+## Phase 2: Feature Brief
+
+Write a Feature Brief to \`docs/briefs/YYYY-MM-DD-feature-name.md\`. Create the \`docs/briefs/\` directory if it doesn't exist.
+
+**Why:** The brief is the single source of truth for what we're building. It prevents scope creep and gives every spec a shared reference point.
+
+Use this structure:
+
+\`\`\`markdown
+# [Feature Name] — Feature Brief
+
+> **Date:** YYYY-MM-DD
+> **Project:** [project name]
+> **Status:** Interview | Decomposing | Specs Ready | In Progress | Complete
+
+---
+
+## Vision
+What are we building and why? The full picture in 2-4 paragraphs.
+
+## User Stories
+- As a [role], I want [capability] so that [benefit]
+
+## Hard Constraints
+- MUST: [constraint that every spec must respect]
+- MUST NOT: [prohibition that every spec must respect]
+
+## Out of Scope
+- NOT: [tempting but deferred]
+
+## Decomposition
+| # | Spec Name | Description | Dependencies | Est. Size |
+|---|-----------|-------------|--------------|-----------|
+| 1 | [verb-object] | [one sentence] | None | [S/M/L] |
+
+## Execution Strategy
+- [ ] Sequential (specs have chain dependencies)
+- [ ] Parallel worktrees (specs are independent)
+- [ ] Mixed
+
+## Success Criteria
+- [ ] [End-to-end behavior 1]
+- [ ] [No regressions in existing features]
+\`\`\`
+
+If \`docs/templates/FEATURE_BRIEF_TEMPLATE.md\` exists, reference it for the full template with additional guidance.
+
+Present the brief to the user. Focus review on:
+- "Does the decomposition match how you think about this?"
+- "Is anything in scope that shouldn't be?"
+- "Are the specs small enough? Can each be described in one sentence?"
+
+Iterate until approved.
+
+## Phase 3: Generate Atomic Specs
+
+For each row in the decomposition table, create a self-contained spec file at \`docs/specs/YYYY-MM-DD-spec-name.md\`. Create the \`docs/specs/\` directory if it doesn't exist.
+
+**Why:** Each spec must be understandable WITHOUT reading the Feature Brief. This prevents the "Curse of Instructions" — no spec should require holding the entire feature in context. Copy relevant context into each spec.
+
+Use this structure for each spec:
+
+\`\`\`markdown
+# [Verb + Object] — Atomic Spec
+
+> **Parent Brief:** \`docs/briefs/YYYY-MM-DD-feature-name.md\`
+> **Status:** Ready
+> **Date:** YYYY-MM-DD
+> **Estimated scope:** [1 session / N files / ~N lines]
+
+---
+
+## What
+One paragraph — what changes when this spec is done?
+
+## Why
+One sentence — what breaks or is missing without this?
+
+## Acceptance Criteria
+- [ ] [Observable behavior]
+- [ ] Build passes
+- [ ] Tests pass
+
+## Constraints
+- MUST: [hard requirement]
+- MUST NOT: [hard prohibition]
+
+## Affected Files
+| Action | File | What Changes |
+|--------|------|-------------|
+
+## Approach
+Strategy, data flow, key decisions. Name one rejected alternative.
+
+## Edge Cases
+| Scenario | Expected Behavior |
+|----------|------------------|
+\`\`\`
+
+If \`docs/templates/ATOMIC_SPEC_TEMPLATE.md\` exists, reference it for the full template with additional guidance.
+
+## Phase 4: Hand Off for Execution
+
+Tell the user:
+\`\`\`
+Feature Brief and [N] atomic specs are ready.
+
+Specs:
+1. [spec-name] — [one sentence] [S/M/L]
+2. [spec-name] — [one sentence] [S/M/L]
+...
+
+Recommended execution:
+- [Parallel/Sequential/Mixed strategy]
+- Estimated: [N] sessions total
+
+To execute: Start a fresh session per spec. Each session should:
+1. Read the spec
+2. Implement
+3. Run /session-end to capture discoveries
+4. Commit and PR
+
+Ready to start?
+\`\`\`
+
+**Why:** A fresh session for execution produces better results. The interview session has too much context noise — a clean session with just the spec is more focused.
+
+You can also use \`/decompose\` to re-decompose a brief if the breakdown needs adjustment.
+`,
 
   'session-end.md': `---
 name: session-end
@@ -554,7 +655,7 @@ Only capture what's NOT obvious from the code or git diff:
 
 Use this format:
 
-\\\`\\\`\\\`markdown
+\`\`\`markdown
 # Discoveries — [topic]
 
 **Date:** YYYY-MM-DD
@@ -564,7 +665,7 @@ Use this format:
 **Expected:** [what we thought would happen]
 **Actual:** [what actually happened]
 **Impact:** [what this means for future work]
-\\\`\\\`\\\`
+\`\`\`
 
 If nothing surprising happened, skip the discovery file entirely. No discovery is a good sign — the spec was accurate.
 
@@ -592,13 +693,15 @@ Commit all changes including the discovery file (if created) and spec status upd
 
 ## 5. Report
 
-\\\`\\\`\\\`
+\`\`\`
 Session complete.
 - Spec: [spec name] — [Complete / In Progress]
 - Build: [passing / failing]
 - Discoveries: [N items / none]
 - Next: [what the next session should tackle, or "ready for PR"]
-\\\`\\\`\\\``,
+\`\`\`
+`,
+
 };
 
 export const TEMPLATES: Record<string, string> = {

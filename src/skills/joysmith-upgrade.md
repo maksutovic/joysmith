@@ -74,8 +74,7 @@ For each missing section identified in the assessment:
 
 For each missing skill identified in the assessment, copy the skill file to `.claude/skills/`. Available Joysmith skills:
 
-- `joysmith.md` — Main assessment and routing
-- `joysmith-assess.md` — Deep 7-dimension assessment
+- `joysmith.md` — Assessment, scoring, and upgrade recommendations
 - `joysmith-upgrade.md` — This skill (apply upgrades)
 - `new-feature.md` — Structured feature development with brief and specs
 - `decompose.md` — Break large tasks into atomic specs
@@ -103,7 +102,7 @@ For testing and knowledge capture gaps, do NOT make changes automatically. Inste
 
 ## Step 5: Re-assess and Report
 
-After all upgrades are applied (or skipped), re-evaluate each of the 7 dimensions against the current state of the project. Use the same scoring rubric from `/joysmith-assess`.
+After all upgrades are applied (or skipped), re-evaluate each of the 7 dimensions against the current state of the project. Use the same scoring rubric from `/joysmith`.
 
 Display a before/after comparison:
 

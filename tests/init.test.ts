@@ -44,7 +44,8 @@ describe('init', () => {
 
       // Skills
       expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith', 'SKILL.md'))).toBe(true);
-      expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith-assess', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'new-feature', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'decompose', 'SKILL.md'))).toBe(true);
 
       // Templates
       expect(existsSync(join(tmpDir, 'docs', 'templates', 'ATOMIC_SPEC_TEMPLATE.md'))).toBe(true);
