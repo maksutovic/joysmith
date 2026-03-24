@@ -1,0 +1,38 @@
+{
+  "name": "joysmith",
+  "version": "0.1.0",
+  "description": "CLI + Claude Code plugin that scaffolds and upgrades AI development harnesses",
+  "type": "module",
+  "bin": {
+    "joysmith": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "claude-code",
+    "ai",
+    "development",
+    "harness",
+    "scaffolding"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
