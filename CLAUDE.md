@@ -1,117 +1,156 @@
-# Joysmith — The Anti-Dark-Factory
+# Joysmith
 
-> "A thousand years of joy" — Robert Bly, *Stealing Sugar from the Castle*
+**What:** A CLI + Claude Code plugin that scaffolds and upgrades AI development harnesses. `npx joysmith init` installs skills, templates, boundaries, and documentation structure into any project, taking it from Level 1 to Level 4 on Dan Shapiro's 5 Levels of Vibe Coding.
 
-Joysmith is a framework for evolving software development workflows from Level 2 (AI as junior dev) to Level 5 (autonomous spec-to-software) using Dan Shapiro's 5 Levels of Vibe Coding. The name is a deliberate counter-narrative to "dark factory" — we believe this work should bring light, joy, and craftsmanship to engineering, not darkness.
+**Component:** npm package (CLI) + Claude Code skills | **Updated:** 2026-03-23
 
-## What This Repo Is
-
-This is the command center for upgrading projects to higher levels of AI-assisted development. It contains:
-
-- Research, templates, and frameworks for spec-driven development
-- Project assessments and upgrade journeys (how we took Project X from Level N to Level N+1)
-- Reusable harness infrastructure (CLAUDE.md templates, skills, boundary frameworks, scenario test patterns)
-- Discussion docs and brainstorming sessions
-
-This is NOT a code library. It's a methodology repo — the playbook for building joysmiths.
+---
 
 ## Behavioral Boundaries
 
 ### ALWAYS
-- Ground all work in Dan Shapiro's 5-level framework
-- Reference specific research when making claims (sources in dark-factory-research.md)
-- Use the interview → spec → plan → execute → scenarios workflow for any project upgrade
-- Keep templates practical and battle-tested (every template should come from real project experience)
+- Run `pnpm test --run && pnpm typecheck` before committing
+- Commit style: `verb: concise message`
+- Reference atomic specs when implementing features — each spec is in `docs/specs/`
+- Test against multiple stack types (Node.js, Python, Rust, Go at minimum)
 
 ### ASK FIRST
-- Adding new frameworks or methodologies (we already have a solid foundation)
-- Changing template structures (they've been validated across 7 projects)
-- Making claims about Level 5 readiness (we're Level 4, be honest about the gap)
+- Adding dependencies — this is a CLI tool, keep it minimal
+- Changing template content — templates are the core product, changes affect all users
+- Changing skill content — skills are the user-facing interface
+- Modifying the CLAUDE.md merge/improve logic — this touches user files
+- Publishing to npm
 
 ### NEVER
-- Store client credentials, API keys, or secrets in this repo
-- Include client-proprietary code or business logic
-- Overstate our level — honesty about where we are is core to the methodology
+- Overwrite user files without explicit confirmation or `--force` flag
+- Add runtime dependencies that aren't strictly necessary
+- Reference absolute paths — all templates and skills must use project-relative paths
+- Include methodology research, project assessments, or personal notes in the tool
 
-## The 5 Levels (Quick Reference)
+---
 
-| Level | Name | You Do | AI Does |
-|-------|------|--------|---------|
-| 0 | Spicy Autocomplete | Write all code | Tab completion |
-| 1 | Coding Intern | Delegate atomic tasks | Write functions |
-| 2 | Junior Developer | Guide direction | Multi-file changes |
-| 3 | Developer as Manager | Review diffs | Primary developer |
-| 4 | Developer as PM | Write specs, check outcomes | End-to-end development |
-| 5 | Joysmith | Define what + why | Specs in, software out |
-
-## Repo Structure
+## Architecture
 
 ```
-/
-├── CLAUDE.md                    # You are here
-├── research/                    # Deep research and source material
-│   └── dark-factory-research.md # Master research synthesis
-├── assessments/                 # Project-level assessments
-│   └── harness-assessment.md    # Cross-project analysis
-├── projects/                    # Project-specific work
-│   └── pie/                     # Pie project upgrade
-│       ├── journey.md           # Pie: from broken to all green
-│       ├── pie-regression-fix-design.md
-│       ├── pie-regression-fix-plan.md
-│       └── pie-level5-harness-plan.md
-├── templates/                   # Reusable harness infrastructure
-│   ├── CLAUDE_MD_TEMPLATE.md    # Full CLAUDE.md template with behavioral boundaries
-│   ├── AGENTS_MD_TEMPLATE.md    # AGENTS.md template for Codex/multi-agent harnesses
-│   ├── DESIGN_SPEC_TEMPLATE.md
-│   ├── IMPLEMENTATION_PLAN_TEMPLATE.md
-│   ├── BOUNDARY_FRAMEWORK.md    # Always/Ask First/Never + contract registry
-│   ├── INTERFACE_CONTRACTS_TEMPLATE.md  # For multi-component interface specs
-│   ├── ASSESSMENT_TEMPLATE.md   # Project assessment against 5-level framework
-│   └── claude-kit/
-│       └── skills/              # Reusable Claude Code skills
-├── scenarios/                   # External scenario test patterns
-│   └── README.md                # How to build holdout test suites
-└── docs/                        # Discussions, brainstorms, plans
-    └── roadmap.md               # Level 4 → 4.5 → 5 progression
+Joysmith/
+├── src/                    # CLI + core logic (TypeScript)
+│   ├── cli.ts              # Entry point — argument parsing (init, upgrade)
+│   ├── init.ts             # Scaffold logic — dirs, files, CLAUDE.md
+│   ├── upgrade.ts          # Upgrade logic — diff, prompt, apply
+│   ├── detect.ts           # Stack detection from manifest files
+│   ├── improve-claude-md.ts # Merge Joysmith sections into existing CLAUDE.md
+│   ├── agents-md.ts        # Generate AGENTS.md for Codex
+│   ├── version.ts          # Version tracking (.joysmith-version)
+│   ├── skills/             # Installable skill files (copied to .claude/skills/)
+│   │   ├── joysmith.md     # Main entry — assess + route
+│   │   ├── joysmith-assess.md
+│   │   ├── joysmith-upgrade.md
+│   │   ├── new-feature.md
+│   │   ├── decompose.md
+│   │   └── session-end.md
+│   └── templates/          # Bundled templates (copied to docs/templates/)
+├── templates/              # Source-of-truth templates (development reference)
+├── tests/
+│   ├── detect.test.ts
+│   ├── init.test.ts
+│   ├── upgrade.test.ts
+│   ├── agents-md.test.ts
+│   └── fixtures/           # Minimal manifest files for each stack
+├── docs/
+│   ├── briefs/             # Feature briefs for Joysmith itself
+│   └── specs/              # Atomic specs for Joysmith itself
+├── package.json
+├── tsconfig.json
+├── CLAUDE.md               # You are here
+└── README.md
 ```
 
-## How to Use This Repo
+### Key Data Flow
 
-### Assessing a Project
-1. Point an analysis agent at the project's CLAUDE.md + docs/ structure
-2. Rate it against the 5-level framework
-3. Identify gaps (use the cross-project assessment as reference)
-4. Write the assessment to assessments/
+```
+npx joysmith init
+  → detectStack() reads manifest files → StackInfo
+  → scaffold dirs (docs/briefs, docs/specs, docs/discoveries, etc.)
+  → copy skills → .claude/skills/
+  → copy templates → docs/templates/
+  → generate/improve CLAUDE.md with StackInfo commands
+  → generate AGENTS.md
+  → print summary + next steps
 
-### Upgrading a Project
-1. Start with the assessment — know where you are
-2. Use the interview process (/new-feature skill) to define the upgrade
-3. Apply templates: CLAUDE.md rewrite, skills, boundary framework
-4. Build external scenarios for the project
-5. Document the journey in journeys/
+/joysmith (inside Claude Code)
+  → read CLAUDE.md, check dirs, check skills
+  → score 7 dimensions
+  → route: scaffold | assess + upgrade | ready
+```
 
-### Adding Research
-- All research goes in research/ with sources
-- The master synthesis (dark-factory-research.md) should be updated as new findings emerge
-- Key sources: Dan Shapiro, StrongDM, METR study, Boris Cherny, Addy Osmani, GitHub Spec Kit
+---
 
-## Key Concepts
+## Key Files
 
-**Spec-Driven Development:** The bottleneck is specification quality, not implementation speed. Write the spec first. If Claude needs to ask a question, the spec has a gap — fix the document, don't just answer.
+| File | Purpose |
+|------|---------|
+| `src/detect.ts` | Stack detection — pure function, no side effects |
+| `src/init.ts` | Main scaffolding logic — the core of `npx joysmith init` |
+| `src/improve-claude-md.ts` | Merge logic for existing CLAUDE.md files — most complex logic |
+| `templates/` | Source-of-truth for all templates — changes here propagate to users via upgrade |
+| `templates/claude-kit/skills/` | Source-of-truth for all skills |
+| `docs/specs/` | Atomic specs for building Joysmith itself |
+| `docs/briefs/2026-03-23-joysmith-cli-plugin.md` | Feature Brief — the full vision |
 
-**External Scenarios (Holdout Tests):** Tests stored OUTSIDE the codebase. The agent can't see them, can't game them. Like ML holdout sets preventing overfitting. Run them AFTER the agent says "done."
+---
 
-**The Interview Pattern:** Have Claude interview you before implementation. Ask about purpose, constraints, edge cases, success criteria. Then write a spec. Then start a fresh session to execute.
+## Development Workflow
 
-**Boundary Tiers (Always/Ask First/Never):** The #1 gap between Level 4 and Level 5. Without explicit behavioral boundaries, Claude doesn't know when to proceed autonomously vs. pause and ask.
+### Setup
+```bash
+pnpm install
+```
 
-**The Feedback Loop:** Scenarios fail → write bug spec from failure output → Claude fixes → re-run → iterate → green → ship. At Level 4.5, this loop is automated. At Level 5, it runs without humans.
+### Build
+```bash
+pnpm build
+```
 
-## Current State
+### Test
+```bash
+pnpm test --run
+```
 
-- **Our level:** 4 (Developer as PM) across active projects
-- **Strongest areas:** Session management (150+ notes), spec quality ceiling, layered documentation, boundary frameworks, interface contracts
-- **Biggest gaps:** Automated validation (external scenarios), CI/CD integration
-- **Completed upgrades:** Pie (both repos, all scenarios passing), Sarama CollarPrototype (boundary framework, contracts, skills, runbook)
-- **Template library:** 7 templates + 7 reusable skills, validated across 2 project upgrades
-- **Next:** Apply templates to remaining projects, build external scenario test suites, automate the feedback loop (Level 4.5)
+### Type Check
+```bash
+pnpm typecheck
+```
+
+### Test Locally (as if npx)
+```bash
+pnpm build && node dist/cli.js init /tmp/test-project
+```
+
+### Feature Development Flow
+```
+Read the relevant atomic spec in docs/specs/
+→ Implement → Test → Capture discoveries → Commit
+```
+
+---
+
+## Common Gotchas
+
+1. **Templates use project-relative paths.** Never reference `/Users/...` or Joysmith repo paths in templates or skills. They get copied into user projects where those paths don't exist.
+2. **CLAUDE.md merge is the hardest problem.** Improving an existing CLAUDE.md without destroying content requires section-level parsing. When in doubt, append rather than modify.
+3. **Skills must be self-contained.** A skill installed to `.claude/skills/` can't import from other files. All necessary context must be inline in the markdown.
+4. **Test against real project structures.** The fixtures in `tests/fixtures/` should mirror real-world manifest files, not minimal stubs.
+
+---
+
+## Spec Status
+
+| Spec | Phase | Status |
+|------|-------|--------|
+| stack-detection | 1 | Ready |
+| assess-skill | 1 | Ready |
+| init-cli | 2 | Ready |
+| upgrade-apply-skill | 2 | Ready |
+| workflow-skills | 3 | Ready |
+| upgrade-cli | 3 | Ready |
+| agents-md-support | 3 | Ready |

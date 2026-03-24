@@ -28,11 +28,12 @@
 
 | Dimension | Score (1-5) | Evidence |
 |---|---|---|
-| **Spec Quality** | X/5 | [Design specs? Implementation plans? Acceptance criteria?] |
+| **Spec Quality** | X/5 | [Design specs? Atomic specs? Acceptance criteria? Feature briefs?] |
+| **Spec Granularity** | X/5 | [Are specs small and self-contained? Can Claude execute without questions? Or are they monolithic?] |
 | **Behavioral Boundaries** | X/5 | [Always/Ask First/Never tiers? Explicit decision rules?] |
-| **Skills & Hooks** | X/5 | [Custom Claude Code skills? Automated hooks?] |
-| **Documentation** | X/5 | [CLAUDE.md actionable? Reference docs? Session notes?] |
-| **Session Management** | X/5 | [Session notes? Context preservation? Decision tracking?] |
+| **Skills & Hooks** | X/5 | [Custom Claude Code skills? Automated hooks? Interview → decompose flow?] |
+| **Documentation** | X/5 | [CLAUDE.md actionable? Reference docs? Interface contracts?] |
+| **Knowledge Capture** | X/5 | [Discoveries documented? Gotchas preserved? Decision records? Do surprises from past work inform future specs?] |
 | **Testing & Validation** | X/5 | [Test coverage? External scenarios? Automated checks?] |
 
 ## Cross-Cutting Themes
@@ -75,9 +76,11 @@
 
 **Key signals per level:**
 - **Level 2:** Has CLAUDE.md, agent can make multi-file changes with guidance
-- **Level 3:** Has design specs, session notes, agent is primary developer
-- **Level 4:** Has boundary framework, external scenarios, agent executes from specs
-- **Level 5:** Automated feedback loop, spec queue, autonomous execution
+- **Level 3:** Has design specs, agent is primary developer, some knowledge capture
+- **Level 3.5:** Has boundary framework, interface contracts, decision records
+- **Level 4:** Has atomic specs, interview → decompose → execute workflow, external scenarios, discoveries feed back into future specs
+- **Level 4.5:** Automated validation (CI), prompt regression tests, spec granularity is consistently high
+- **Level 5:** Automated feedback loop, spec queue, autonomous execution, discoveries auto-generate new specs
 
 **Scoring rubric:**
 - 1/5: Absent or broken
@@ -85,3 +88,17 @@
 - 3/5: Functional, some gaps
 - 4/5: Strong, actionable, battle-tested
 - 5/5: Exemplary, could be a template for others
+
+**Spec Granularity scoring guide:**
+- 1/5: No specs, or specs are verbal/informal
+- 2/5: Monolithic specs that cover entire features
+- 3/5: Specs exist but mix concerns or are too large for single-session execution
+- 4/5: Atomic specs — each is self-contained, single-session, independently testable
+- 5/5: Specs are decomposed from Feature Briefs, sized for context windows, with clear dependency graphs
+
+**Knowledge Capture scoring guide:**
+- 1/5: No documentation of surprises or decisions
+- 2/5: Session notes exist but are narrative/ritual (step-by-step logs nobody re-reads)
+- 3/5: Decision records exist, some gotchas captured ad-hoc
+- 4/5: Discoveries captured per-spec, travel with PRs, inform future specs
+- 5/5: Discoveries automatically surface in relevant contexts (CLAUDE.md gotchas, boundary updates, spec constraints)
