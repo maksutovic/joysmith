@@ -54,6 +54,7 @@ function generateBoundariesSection(): string {
 - Use \`verb: concise message\` format for commits
 - Commit after completing each discrete task (atomic commits)
 - Stage specific files by name (not \`git add -A\` or \`git add .\`)
+- Read \`docs/context/\` before making infrastructure or config changes
 - Follow existing code patterns and style
 
 ### ASK FIRST
@@ -106,13 +107,13 @@ This project uses [Joycraft](https://github.com/maksutovic/joycraft) for AI deve
 
 | Skill | Purpose |
 |-------|---------|
-| \`/tune\` | Assess your harness, apply upgrades, see path to Level 5 |
-| \`/new-feature\` | Interview -> Feature Brief -> Atomic Specs |
-| \`/interview\` | Lightweight brainstorm — yap about ideas, get a structured summary |
-| \`/decompose\` | Break a brief into small, testable specs |
-| \`/session-end\` | Capture discoveries, verify, commit |
+| \`/joycraft-tune\` | Assess your harness, apply upgrades, see path to Level 5 |
+| \`/joycraft-new-feature\` | Interview -> Feature Brief -> Atomic Specs |
+| \`/joycraft-interview\` | Lightweight brainstorm — yap about ideas, get a structured summary |
+| \`/joycraft-decompose\` | Break a brief into small, testable specs |
+| \`/joycraft-session-end\` | Capture discoveries, verify, commit |
 
-Run \`/tune\` to see where your project stands and what to improve next.`;
+Run \`/joycraft-tune\` to see where your project stands and what to improve next.`;
 }
 
 export function improveCLAUDEMd(existing: string, stack: StackInfo): string {

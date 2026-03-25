@@ -99,17 +99,19 @@ Examine `docs/` directory structure and content.
 | 4 | Structured docs/ with templates and clear organization |
 | 5 | Full structure: briefs/, specs/, templates/, architecture docs, referenced from CLAUDE.md |
 
-### Dimension 6: Knowledge Capture
+### Dimension 6: Knowledge Capture & Contextual Stewardship
 
-Look for discoveries, decisions, and session notes.
+Look for discoveries, decisions, session notes, and context documents.
 
 | Score | Criteria |
 |-------|----------|
 | 1 | No knowledge capture mechanism |
-| 2 | Ad-hoc notes in random locations |
-| 3 | A dedicated notes or decisions directory exists |
-| 4 | Structured discoveries/decisions directory with entries |
-| 5 | Active capture: discoveries with entries, session-end workflow, decision log |
+| 2 | Ad-hoc notes or a discoveries directory with no entries |
+| 3 | Discoveries directory with some entries, or context docs exist but empty |
+| 4 | Active discoveries + at least 2 context docs with content (production-map, dangerous-assumptions, decision-log, institutional-knowledge) |
+| 5 | Full contextual stewardship: discoveries with entries, all 4 context docs maintained, session-end workflow in active use |
+
+**Check for:** `docs/discoveries/`, `docs/context/production-map.md`, `docs/context/dangerous-assumptions.md`, `docs/context/decision-log.md`, `docs/context/institutional-knowledge.md`. Score based on both existence AND whether they have real content (not just templates).
 
 ### Dimension 7: Testing & Validation
 
