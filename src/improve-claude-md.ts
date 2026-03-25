@@ -116,6 +116,19 @@ This project uses [Joycraft](https://github.com/maksutovic/joycraft) for AI deve
 Run \`/joycraft-tune\` to see where your project stands and what to improve next.`;
 }
 
+function generateExternalValidationSection(): string {
+  return `## External Validation
+
+This project uses holdout scenario tests in a separate private repo.
+
+### NEVER
+- Access, read, or reference the scenarios repo
+- Mention scenario test names or contents
+- Modify the scenarios dispatch workflow to leak test information
+
+The scenarios repo is deliberately invisible to you. This is the holdout guarantee — like a validation set in ML.`;
+}
+
 export function improveCLAUDEMd(existing: string, stack: StackInfo): string {
   const sections = parseSections(existing);
   const additions: string[] = [];
@@ -142,6 +155,10 @@ export function improveCLAUDEMd(existing: string, stack: StackInfo): string {
 
   if (!hasSection(sections, /getting\s*started.*joycraft/i) && !hasSection(sections, /joycraft.*skills/i)) {
     additions.push(generateGettingStartedSection());
+  }
+
+  if (!hasSection(sections, /external\s*validation/i)) {
+    additions.push(generateExternalValidationSection());
   }
 
   if (additions.length === 0) {
