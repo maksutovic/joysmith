@@ -63,49 +63,288 @@ npx joycraft upgrade
 
 Joycraft tracks what it installed vs. what you've customized. Unmodified files update automatically. Customized files show a diff and ask before overwriting. Use `--yes` for CI.
 
-## Level 5: Autofix Loop
+## Level 5: The Autonomous Loop
 
-Level 5 is where specs go in and software comes out — with no human in the loop for individual changes. Joycraft implements this as an autonomous fix loop driven by external holdout scenarios.
+Level 5 is where specs go in and validated software comes out. Joycraft implements this as four interlocking GitHub Actions workflows, a separate scenarios repository, and two independent AI agents that can never see each other's work.
+
+Run `/joycraft-implement-level5` in Claude Code for a guided setup, or use the CLI directly:
 
 ```bash
-npx joycraft init-autofix
+npx joycraft init-autofix --scenarios-repo my-project-scenarios --app-id 3180156
 ```
 
-This sets up:
+### Architecture Overview
 
-- **GitHub App** — receives PR events, triggers the fix loop, posts results back as check runs
-- **Scenario agent** — generates holdout scenarios from your specs, stores them outside the codebase
-- **Implementation agent** — receives failing scenarios, writes code and tests, opens a PR
-- **Autofix workflow** — runs on every PR, re-runs scenarios, iterates until green or budget exhausted
+Level 5 has four moving parts. Each is a GitHub Actions workflow that communicates via `repository_dispatch` events — no custom servers, no webhooks, no external services.
 
-### The holdout wall
+```mermaid
+graph TB
+    subgraph "Main Repository"
+        A[Push specs to docs/specs/] -->|push to main| B[Spec Dispatch Workflow]
+        C[PR opened] --> D[CI runs]
+        D -->|CI fails| E[Autofix Workflow]
+        D -->|CI passes| F[Scenarios Dispatch Workflow]
+        G[Scenarios Re-run Workflow]
+    end
 
-The core mechanism that prevents gaming: the scenario agent and the implementation agent cannot see each other's work.
+    subgraph "Scenarios Repository (private)"
+        H[Scenario Generation Workflow]
+        I[Scenario Run Workflow]
+        J[Holdout Tests]
+        K[Specs Mirror]
+    end
 
+    B -->|repository_dispatch: spec-pushed| H
+    H -->|reads specs, writes tests| J
+    H -->|repository_dispatch: scenarios-updated| G
+    G -->|repository_dispatch: run-scenarios| I
+    F -->|repository_dispatch: run-scenarios| I
+    I -->|posts PASS/FAIL comment| C
+    E -->|Claude fixes code, pushes| D
+
+    style J fill:#f9f,stroke:#333
+    style K fill:#bbf,stroke:#333
 ```
-Spec → [Scenario Agent] → Holdout Scenarios (external, hidden from impl agent)
-                                    ↓
-                          [GitHub App trigger]
-                                    ↓
-Failing scenarios → [Implementation Agent] → PR
-                                    ↓
-                          [Autofix Workflow]
-                                    ↓
-                    Run holdout scenarios against PR
-                    Pass → merge | Fail → iterate
+
+### The Four Workflows
+
+#### 1. Autofix Workflow (`autofix.yml`)
+
+Triggered when CI **fails** on a PR. Claude Code CLI reads the failure logs and attempts a fix.
+
+```mermaid
+sequenceDiagram
+    participant CI as CI Workflow
+    participant AF as Autofix Workflow
+    participant Claude as Claude Code CLI
+    participant PR as Pull Request
+
+    CI->>AF: workflow_run (conclusion: failure)
+    AF->>AF: Generate GitHub App token
+    AF->>AF: Checkout PR branch
+    AF->>AF: Count previous autofix attempts
+
+    alt attempts >= 3
+        AF->>PR: Comment: "Human review needed"
+    else attempts < 3
+        AF->>AF: Fetch CI failure logs
+        AF->>AF: Strip ANSI codes
+        AF->>Claude: claude -p "Fix this CI failure..." <br/> --dangerously-skip-permissions --max-turns 20
+        Claude->>Claude: Read logs, edit code, run tests
+        Claude->>AF: Exit (changes committed locally)
+        AF->>PR: Push fix (commit prefix: "autofix:")
+        AF->>PR: Comment: summary of fix
+        Note over CI,PR: CI re-runs automatically on push
+    end
 ```
 
-The implementation agent sees only the failing scenario descriptions, never the scenario generation logic or the full scenario suite. The scenario agent never sees the implementation. This is the same principle as a holdout set in ML — it's only valid if neither side can overfit to the other.
+**Key details:**
+- Uses a GitHub App identity for pushes — avoids GitHub's anti-recursion protection
+- Concurrency group per PR — only one autofix runs at a time per PR
+- Max 3 iterations — posts "human review needed" if it can't fix it
+- No `--model` flag — Claude CLI handles model selection
+- Strips ANSI escape codes from logs so Claude gets clean text
 
-### Scenario evolution
+#### 2. Scenarios Dispatch Workflow (`scenarios-dispatch.yml`)
 
-Scenarios are not static. When a spec changes, `init-autofix` triggers a scenario diff — the scenario agent reviews the delta and generates new scenarios to cover the new behavior. Obsolete scenarios are retired. The scenario suite grows with your product.
+Triggered when CI **passes** on a PR. Fires a `repository_dispatch` to the scenarios repo to run holdout tests against the PR branch.
 
-### GitHub App requirement
+```mermaid
+sequenceDiagram
+    participant CI as CI Workflow
+    participant SD as Scenarios Dispatch
+    participant SR as Scenarios Repo
 
-Level 5 requires a GitHub App to receive webhook events and post check statuses. `init-autofix` outputs the exact manifest and permission set needed. You install it once; Joycraft handles the rest.
+    CI->>SD: workflow_run (conclusion: success, PR)
+    SD->>SD: Generate GitHub App token
+    SD->>SR: repository_dispatch: run-scenarios<br/>payload: {pr_number, branch, sha, repo}
+```
 
-Once set up, the loop is: push a spec → scenarios generate → implementation agent picks it up → PR opens → autofix iterates → humans review the merged result, not the process.
+#### 3. Spec Dispatch Workflow (`spec-dispatch.yml`)
+
+Triggered when spec files are pushed to `main`. Sends the spec content to the scenarios repo so the scenario agent can write tests.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Main as Main Repo (push to main)
+    participant SPD as Spec Dispatch Workflow
+    participant SR as Scenarios Repo
+
+    Dev->>Main: Push specs to docs/specs/
+    Main->>SPD: push event (docs/specs/** changed)
+    SPD->>SPD: git diff --diff-filter=AM (added/modified only)
+
+    loop For each changed spec
+        SPD->>SR: repository_dispatch: spec-pushed<br/>payload: {spec_filename, spec_content, commit_sha, branch, repo}
+    end
+
+    Note over SPD: Deleted specs are ignored —<br/>existing scenario tests remain
+```
+
+#### 4. Scenarios Re-run Workflow (`scenarios-rerun.yml`)
+
+Triggered when the scenarios repo updates its tests. Re-dispatches all open PRs to the scenarios repo so they get tested with the latest holdout tests.
+
+```mermaid
+sequenceDiagram
+    participant SR as Scenarios Repo
+    participant RR as Re-run Workflow
+    participant SRun as Scenarios Run
+
+    SR->>RR: repository_dispatch: scenarios-updated
+    RR->>RR: List open PRs via GitHub API
+
+    alt No open PRs
+        RR->>RR: Exit (no-op)
+    else Has open PRs
+        loop For each open PR
+            RR->>SRun: repository_dispatch: run-scenarios<br/>payload: {pr_number, branch, sha, repo}
+        end
+    end
+```
+
+**Why this exists:** There's a race condition. The implementation agent might open a PR before the scenario agent finishes writing new tests. The re-run workflow handles this — when new tests land, all open PRs get re-tested. Worst case: a PR merges before the re-run, and the new tests protect the very next PR. You're never more than one cycle behind.
+
+### The Holdout Wall
+
+The core safety mechanism. Two agents, two repos, one shared interface (specs):
+
+```mermaid
+graph LR
+    subgraph "Implementation Agent (main repo)"
+        IA_sees["Can see:<br/>Source code<br/>Internal tests<br/>Specs"]
+        IA_cant["Cannot see:<br/>Scenario tests<br/>Scenario repo"]
+    end
+
+    subgraph "Specs (shared interface)"
+        Specs["docs/specs/*.md<br/>Describes WHAT should happen<br/>Never describes HOW it's tested"]
+    end
+
+    subgraph "Scenario Agent (scenarios repo)"
+        SA_sees["Can see:<br/>Specs (via dispatch)<br/>Scenario tests<br/>Specs mirror"]
+        SA_cant["Cannot see:<br/>Source code<br/>Internal tests"]
+    end
+
+    IA_sees --> Specs
+    Specs --> SA_sees
+
+    style IA_cant fill:#fcc,stroke:#933
+    style SA_cant fill:#fcc,stroke:#933
+    style Specs fill:#cfc,stroke:#393
+```
+
+This is the same principle as a holdout set in machine learning. If the implementation agent could see the scenario tests, it would optimize to pass them specifically — not to build correct software. By keeping the wall intact, scenario tests catch real behavioral regressions, not test-gaming.
+
+### Scenario Evolution
+
+Scenarios aren't static. When you push new specs, the scenario agent automatically triages them and writes new holdout tests.
+
+```mermaid
+flowchart TD
+    A[New spec pushed to main] --> B[Spec Dispatch sends to scenarios repo]
+    B --> C[Scenario Agent reads spec]
+    C --> D{Triage: is this user-facing?}
+
+    D -->|Internal refactor, CI, dev tooling| E[Skip — commit note: 'No scenario changes needed']
+    D -->|New user-facing behavior| F[Write new scenario test file]
+    D -->|Modified existing behavior| G[Update existing scenario tests]
+
+    F --> H[Commit to scenarios main]
+    G --> H
+    H --> I[Dispatch scenarios-updated to main repo]
+    I --> J[Re-run workflow tests open PRs with new scenarios]
+
+    style D fill:#ffd,stroke:#993
+    style E fill:#ddd,stroke:#999
+    style F fill:#cfc,stroke:#393
+    style G fill:#cfc,stroke:#393
+```
+
+**The scenario agent's prompt instructs it to:**
+- Act as a QA engineer, never a developer
+- Write only behavioral tests (invoke the built artifact, assert on output)
+- Never import source code or reference internal implementation
+- Use a triage decision tree: SKIP / NEW / UPDATE
+- Err on the side of writing a test if the spec is ambiguous
+
+**The specs mirror:** The scenarios repo maintains a `specs/` folder that mirrors every spec it receives. This gives the scenario agent historical context ("what features already exist?") without access to the main repo's codebase.
+
+### The Complete Loop
+
+Here's the full lifecycle from spec to shipped, validated code:
+
+```mermaid
+sequenceDiagram
+    participant Human as Human (writes specs)
+    participant Main as Main Repo
+    participant ScAgent as Scenario Agent
+    participant ScRepo as Scenarios Repo
+    participant ImplAgent as Implementation Agent
+    participant Autofix as Autofix Workflow
+
+    Human->>Main: Push spec to docs/specs/
+    Main->>ScAgent: spec-pushed dispatch
+
+    par Scenario Generation
+        ScAgent->>ScAgent: Triage spec
+        ScAgent->>ScRepo: Write/update holdout tests
+        ScRepo->>Main: scenarios-updated dispatch
+    and Implementation
+        Human->>ImplAgent: Execute spec (fresh session)
+        ImplAgent->>Main: Open PR
+    end
+
+    Main->>Main: CI runs on PR
+
+    alt CI fails
+        Main->>Autofix: Autofix workflow triggers
+        Autofix->>Main: Push fix, CI re-runs
+    end
+
+    alt CI passes
+        Main->>ScRepo: run-scenarios dispatch
+        ScRepo->>ScRepo: Clone PR branch, build, run holdout tests
+        ScRepo->>Main: Post PASS/FAIL comment on PR
+    end
+
+    alt Scenarios PASS
+        Note over Human,Main: Ready for human review and merge
+    else Scenarios FAIL
+        Main->>Autofix: Autofix attempts fix
+        Note over Autofix,ScRepo: Loop continues (max 3 iterations)
+    end
+```
+
+### What Gets Installed
+
+| Where | File | Purpose |
+|-------|------|---------|
+| Main repo | `.github/workflows/autofix.yml` | CI failure → Claude fix → push |
+| Main repo | `.github/workflows/scenarios-dispatch.yml` | CI pass → trigger holdout tests |
+| Main repo | `.github/workflows/spec-dispatch.yml` | Spec push → trigger scenario generation |
+| Main repo | `.github/workflows/scenarios-rerun.yml` | New tests → re-test open PRs |
+| Scenarios repo | `workflows/run.yml` | Clone PR, build, run tests, post results |
+| Scenarios repo | `workflows/generate.yml` | Receive spec, run scenario agent |
+| Scenarios repo | `prompts/scenario-agent.md` | Scenario agent prompt template |
+| Scenarios repo | `example-scenario.test.ts` | Example holdout test |
+| Scenarios repo | `package.json` | Minimal vitest setup |
+| Scenarios repo | `README.md` | Explains holdout pattern to contributors |
+
+### Prerequisites
+
+- **GitHub App** — Provides a separate identity for autofix pushes (avoids GitHub's anti-recursion protection). You can install the shared [Joycraft Autofix](https://github.com/apps/joycraft-autofix) app (App ID: `3180156`) or create your own.
+- **Secrets** — `JOYCRAFT_APP_PRIVATE_KEY` and `ANTHROPIC_API_KEY` on both the main and scenarios repos.
+- **Scenarios repo** — A private repository where holdout tests live. Created during setup.
+
+### Cost
+
+With Claude Sonnet + `--max-turns 20` + max 3 iterations per PR:
+- **Autofix:** ~$5 per fix attempt, worst case ~$15 per PR
+- **Scenario generation:** ~$2 per spec dispatch
+- **Solo dev with ~10 PRs/month:** ~$10-30/month for the full loop
+
+The iteration guard and max-turns cap prevent runaway costs.
 
 ## Git Autonomy
 
