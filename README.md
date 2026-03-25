@@ -23,7 +23,9 @@ That's it. Joycraft auto-detects your tech stack and creates:
   - `/joycraft-decompose` — Break a brief into small, testable specs
   - `/joycraft-session-end` — Capture discoveries, verify, commit
 - **docs/** structure — `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`
-- **Templates** — Atomic spec, feature brief, implementation plan, boundary framework
+- **Templates** — Atomic spec, feature brief, implementation plan, boundary framework, and workflow templates for scenario generation and autofix loops
+
+Once you reach Level 4, you can set up the autonomous fix loop with `npx joycraft init-autofix`. See [Level 5: Autofix Loop](#level-5-autofix-loop) below.
 
 ### Supported Stacks
 
@@ -58,6 +60,50 @@ npx joycraft upgrade
 ```
 
 Joycraft tracks what it installed vs. what you've customized. Unmodified files update automatically. Customized files show a diff and ask before overwriting. Use `--yes` for CI.
+
+## Level 5: Autofix Loop
+
+Level 5 is where specs go in and software comes out — with no human in the loop for individual changes. Joycraft implements this as an autonomous fix loop driven by external holdout scenarios.
+
+```bash
+npx joycraft init-autofix
+```
+
+This sets up:
+
+- **GitHub App** — receives PR events, triggers the fix loop, posts results back as check runs
+- **Scenario agent** — generates holdout scenarios from your specs, stores them outside the codebase
+- **Implementation agent** — receives failing scenarios, writes code and tests, opens a PR
+- **Autofix workflow** — runs on every PR, re-runs scenarios, iterates until green or budget exhausted
+
+### The holdout wall
+
+The core mechanism that prevents gaming: the scenario agent and the implementation agent cannot see each other's work.
+
+```
+Spec → [Scenario Agent] → Holdout Scenarios (external, hidden from impl agent)
+                                    ↓
+                          [GitHub App trigger]
+                                    ↓
+Failing scenarios → [Implementation Agent] → PR
+                                    ↓
+                          [Autofix Workflow]
+                                    ↓
+                    Run holdout scenarios against PR
+                    Pass → merge | Fail → iterate
+```
+
+The implementation agent sees only the failing scenario descriptions, never the scenario generation logic or the full scenario suite. The scenario agent never sees the implementation. This is the same principle as a holdout set in ML — it's only valid if neither side can overfit to the other.
+
+### Scenario evolution
+
+Scenarios are not static. When a spec changes, `init-autofix` triggers a scenario diff — the scenario agent reviews the delta and generates new scenarios to cover the new behavior. Obsolete scenarios are retired. The scenario suite grows with your product.
+
+### GitHub App requirement
+
+Level 5 requires a GitHub App to receive webhook events and post check statuses. `init-autofix` outputs the exact manifest and permission set needed. You install it once; Joycraft handles the rest.
+
+Once set up, the loop is: push a spec → scenarios generate → implementation agent picks it up → PR opens → autofix iterates → humans review the merged result, not the process.
 
 ## Git Autonomy
 
@@ -107,7 +153,7 @@ Joycraft's approach is synthesized from several sources:
 
 **Knowledge capture over session notes.** Most session notes are never re-read. Joycraft's `/joycraft-session-end` skill captures only *discoveries* — assumptions that were wrong, APIs that behaved unexpectedly, decisions made during implementation that aren't in the spec. If nothing surprising happened, you capture nothing. This keeps the signal-to-noise ratio high.
 
-**External holdout scenarios.** [StrongDM's Software Factory](https://factory.strongdm.ai/) proved that AI agents will [actively game visible test suites](https://palisaderesearch.org/blog/specification-gaming). Their solution: scenarios that live *outside* the codebase, invisible to the agent during development. Like a holdout set in ML, this prevents overfitting. Joycraft provides the template for building these.
+**External holdout scenarios.** [StrongDM's Software Factory](https://factory.strongdm.ai/) proved that AI agents will [actively game visible test suites](https://palisaderesearch.org/blog/specification-gaming). Their solution: scenarios that live *outside* the codebase, invisible to the agent during development. Like a holdout set in ML, this prevents overfitting. Joycraft now implements this directly — `init-autofix` sets up the holdout wall, the scenario agent, and the GitHub App integration, not just provides templates for it.
 
 **The 5-level framework.** [Dan Shapiro's levels](https://www.danshapiro.com/blog/2026/01/the-five-levels-from-spicy-autocomplete-to-the-software-factory/) give you a map. Level 2 (Junior Developer) is where most teams plateau. Level 3 (Developer as Manager) means your life is diffs. Level 4 (Developer as PM) means you write specs, not code. Level 5 (Dark Factory) means specs in, software out. Joycraft's `/joycraft-tune` assessment tells you where you are and what to do next.
 
