@@ -112,6 +112,7 @@ This project uses [Joycraft](https://github.com/maksutovic/joycraft) for AI deve
 | \`/joycraft-interview\` | Lightweight brainstorm — yap about ideas, get a structured summary |
 | \`/joycraft-decompose\` | Break a brief into small, testable specs |
 | \`/joycraft-session-end\` | Capture discoveries, verify, commit |
+| \`/joycraft-implement-level5\` | Set up Level 5 — autofix loop, holdout scenarios, scenario evolution |
 
 Run \`/joycraft-tune\` to see where your project stands and what to improve next.`;
 }

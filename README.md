@@ -22,6 +22,7 @@ That's it. Joycraft auto-detects your tech stack and creates:
   - `/joycraft-interview` — Lightweight brainstorm — yap about ideas, get a structured summary
   - `/joycraft-decompose` — Break a brief into small, testable specs
   - `/joycraft-session-end` — Capture discoveries, verify, commit
+  - `/joycraft-implement-level5` — Set up Level 5: autofix loop, holdout scenarios, scenario evolution
 - **docs/** structure — `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`
 - **Templates** — Atomic spec, feature brief, implementation plan, boundary framework, and workflow templates for scenario generation and autofix loops
 
@@ -43,6 +44,7 @@ After init, open Claude Code and use the installed skills:
 /joycraft-new-feature           # Interview → Feature Brief → Atomic Specs → ready to execute
 /joycraft-decompose             # Break any feature into small, independent specs
 /joycraft-session-end           # Wrap up — discoveries, verification, commit
+/joycraft-implement-level5     # Set up Level 5 — autofix, holdout scenarios, evolution
 ```
 
 The core loop:
