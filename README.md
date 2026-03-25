@@ -161,7 +161,7 @@ npx joycraft upgrade
 
 Joycraft tracks what it installed vs. what you've customized. Unmodified files update automatically. Customized files show a diff and ask before overwriting. Use `--yes` for CI.
 
-> **Note:** If you're upgrading from an early version, you may have old skill files (e.g., `/joy`, `/joysmith`) that are no longer used. Automatic cleanup of deprecated skills is on the roadmap — for now, you can safely delete any `.claude/skills/` entries that don't start with `joycraft-`.
+> **Note:** If you're upgrading from an early version, deprecated skill directories (e.g., `/joy`, `/joysmith`, `/tune`) are automatically removed during upgrade.
 
 ## Level 5: The Autonomous Loop
 

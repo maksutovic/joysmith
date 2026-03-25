@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { readVersion, writeVersion, hashContent } from './version.js';
@@ -25,6 +25,54 @@ function getManagedFiles(): Record<string, string> {
     files[join('docs', 'templates', name)] = content;
   }
   return files;
+}
+
+// Deprecated skill names from previous versions of Joycraft.
+// These get removed during upgrade to prevent stale slash commands.
+const DEPRECATED_SKILL_DIRS = [
+  'tune',            // pre-namespace (was /tune, now /joycraft-tune)
+  'joy',             // merged into joycraft-tune
+  'joysmith',        // pre-rebrand
+  'joysmith-assess', // merged into joycraft-tune
+  'tune-assess',     // merged into joycraft-tune
+  'tune-upgrade',    // merged into joycraft-tune
+];
+
+// Flat .md files from the pre-directory skill format
+const DEPRECATED_SKILL_FILES = [
+  'tune.md',
+  'joy.md',
+  'joysmith.md',
+  'joysmith-assess.md',
+  'tune-assess.md',
+  'tune-upgrade.md',
+];
+
+function cleanupDeprecatedSkills(targetDir: string): number {
+  const skillsDir = join(targetDir, '.claude', 'skills');
+  if (!existsSync(skillsDir)) return 0;
+
+  let removed = 0;
+
+  // Remove deprecated directories
+  for (const name of DEPRECATED_SKILL_DIRS) {
+    const dir = join(skillsDir, name);
+    if (existsSync(dir)) {
+      rmSync(dir, { recursive: true, force: true });
+      removed++;
+    }
+  }
+
+  // Remove flat .md files from pre-directory format
+  for (const name of DEPRECATED_SKILL_FILES) {
+    const file = join(skillsDir, name);
+    if (existsSync(file)) {
+      rmSync(file);
+      removed++;
+    }
+  }
+
+  return removed;
 }
 
 function countLines(content: string): number {
@@ -55,6 +103,12 @@ export async function upgrade(dir: string, opts: UpgradeOptions): Promise<void> 
     console.log('This project has not been initialized with Joycraft.');
     console.log('Run `npx joycraft init` first.');
     return;
+  }
+
+  // Clean up deprecated skill directories/files from older versions
+  const deprecatedRemoved = cleanupDeprecatedSkills(targetDir);
+  if (deprecatedRemoved > 0) {
+    console.log(`Removed ${deprecatedRemoved} deprecated skill(s) from previous Joycraft versions.`);
   }
 
   // Get current package version

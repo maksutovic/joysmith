@@ -140,6 +140,58 @@ describe('upgrade', () => {
     expect(logs.some(l => l.includes('added 1 new'))).toBe(true);
   });
 
+  it('removes deprecated skill directories during upgrade', async () => {
+    await init(tmpDir, { force: false });
+
+    // Simulate old skill directories that should be cleaned up
+    const deprecatedSkills = ['tune', 'joy', 'joysmith', 'joysmith-assess', 'tune-assess', 'tune-upgrade'];
+    for (const name of deprecatedSkills) {
+      const dir = join(tmpDir, '.claude', 'skills', name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'SKILL.md'), `old ${name} skill`, 'utf-8');
+    }
+
+    // Also create a flat .md file (pre-directory format)
+    writeFileSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'), 'flat file', 'utf-8');
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => logs.push(args.join(' '));
+    try {
+      await upgrade(tmpDir, { yes: true });
+    } finally {
+      console.log = origLog;
+    }
+
+    // All deprecated directories should be removed
+    for (const name of deprecatedSkills) {
+      expect(existsSync(join(tmpDir, '.claude', 'skills', name))).toBe(false);
+    }
+    // Flat file should be removed
+    expect(existsSync(join(tmpDir, '.claude', 'skills', 'joysmith.md'))).toBe(false);
+
+    // Current skills should still exist
+    expect(existsSync(join(tmpDir, '.claude', 'skills', 'joycraft-tune', 'SKILL.md'))).toBe(true);
+
+    // Should report what was cleaned up
+    expect(logs.some(l => l.includes('Removed') && l.includes('deprecated'))).toBe(true);
+  });
+
+  it('does not remove non-joycraft skill directories during upgrade', async () => {
+    await init(tmpDir, { force: false });
+
+    // Create a user's custom skill
+    const customDir = join(tmpDir, '.claude', 'skills', 'my-custom-skill');
+    mkdirSync(customDir, { recursive: true });
+    writeFileSync(join(customDir, 'SKILL.md'), 'my custom skill', 'utf-8');
+
+    await upgrade(tmpDir, { yes: true });
+
+    // Custom skill should be untouched
+    expect(existsSync(join(customDir, 'SKILL.md'))).toBe(true);
+    expect(readFileSync(join(customDir, 'SKILL.md'), 'utf-8')).toBe('my custom skill');
+  });
+
   it('writes updated .joycraft-version after upgrade', async () => {
     await init(tmpDir, { force: false });
 
