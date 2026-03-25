@@ -339,10 +339,10 @@ sequenceDiagram
 
 ### Cost
 
-With Claude Sonnet + `--max-turns 20` + max 3 iterations per PR:
-- **Autofix:** ~$5 per fix attempt, worst case ~$15 per PR
-- **Scenario generation:** ~$2 per spec dispatch
-- **Solo dev with ~10 PRs/month:** ~$10-30/month for the full loop
+Validated in the Pipit trial (~3 minutes, one iteration, zero human intervention). With Claude Sonnet + `--max-turns 20` + max 3 iterations per PR:
+- **Autofix:** ~$0.50 per attempt, worst case ~$1.50 per PR (3 iterations)
+- **Scenario generation:** ~$0.20 per spec dispatch
+- **Solo dev with ~10 PRs/month:** ~$5-10/month for the full loop
 
 The iteration guard and max-turns cap prevent runaway costs.
 
