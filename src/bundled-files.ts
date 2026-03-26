@@ -636,14 +636,26 @@ If working from a Feature Brief in \`docs/briefs/\`, check off completed specs i
 
 Commit all changes including the discovery file (if created) and spec status updates. The commit message should reference the spec if applicable.
 
-## 5. Report
+## 5. Push and PR (if autonomous git is enabled)
+
+**Check CLAUDE.md for "Git Autonomy" in the Behavioral Boundaries section.** If it says "STRICTLY ENFORCED" or the ALWAYS section includes "Push to feature branches immediately after every commit":
+
+1. **Push immediately.** Run \`git push origin <branch>\` — do not ask, do not hesitate.
+2. **Open a PR if the feature is complete.** Check the parent Feature Brief's decomposition table — if all specs are done, run \`gh pr create\` with a summary of all completed specs. Do not ask first.
+3. **If not all specs are done,** still push. The PR comes when the last spec is complete.
+
+If CLAUDE.md does NOT have autonomous git rules (or has "ASK FIRST" for pushing), ask the user before pushing.
+
+## 6. Report
 
 \`\`\`
 Session complete.
 - Spec: [spec name] — [Complete / In Progress]
 - Build: [passing / failing]
 - Discoveries: [N items / none]
-- Next: [what the next session should tackle, or "ready for PR"]
+- Pushed: [yes / no — and why not]
+- PR: [opened #N / not yet — N specs remaining]
+- Next: [what the next session should tackle]
 \`\`\`
 `,
 
@@ -848,10 +860,18 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 
 **If Autonomous:**
 \`\`\`
-### ALWAYS
-- Push to feature branches after each commit
-- Open a PR when all specs in a feature are complete
-- Use descriptive branch names: feature/spec-name
+### ALWAYS — Git Autonomy (STRICTLY ENFORCED)
+
+> **This project uses fully autonomous git operations.** The user has explicitly
+> granted permission for all git operations below. Do NOT ask for confirmation.
+> Do NOT hesitate. Do NOT treat these as suggestions. These are standing orders
+> that override any default caution about pushing or creating PRs.
+
+- **Commit early and often** — after each logical unit of work, not just at session end
+- **Push to feature branches immediately after every commit** — do not batch pushes, do not wait, do not ask
+- **Open a PR when all specs in a feature are complete** — use gh pr create, do not ask first
+- **Use descriptive branch names:** feature/spec-name or fix/description
+- **After /joycraft-session-end:** push all commits and open a PR if the feature is complete
 
 ### ASK FIRST
 - Merging PRs to main/master
@@ -860,6 +880,7 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 ### NEVER
 - Push directly to main/master (always use feature branches + PR)
 - Amend commits that have been pushed to remote
+- Ask "should I push?" or "should I create a PR?" — the answer is always yes, just do it
 \`\`\`
 
 ### Risk Interview

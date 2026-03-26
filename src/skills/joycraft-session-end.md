@@ -74,12 +74,24 @@ If working from a Feature Brief in `docs/briefs/`, check off completed specs in 
 
 Commit all changes including the discovery file (if created) and spec status updates. The commit message should reference the spec if applicable.
 
-## 5. Report
+## 5. Push and PR (if autonomous git is enabled)
+
+**Check CLAUDE.md for "Git Autonomy" in the Behavioral Boundaries section.** If it says "STRICTLY ENFORCED" or the ALWAYS section includes "Push to feature branches immediately after every commit":
+
+1. **Push immediately.** Run `git push origin <branch>` — do not ask, do not hesitate.
+2. **Open a PR if the feature is complete.** Check the parent Feature Brief's decomposition table — if all specs are done, run `gh pr create` with a summary of all completed specs. Do not ask first.
+3. **If not all specs are done,** still push. The PR comes when the last spec is complete.
+
+If CLAUDE.md does NOT have autonomous git rules (or has "ASK FIRST" for pushing), ask the user before pushing.
+
+## 6. Report
 
 ```
 Session complete.
 - Spec: [spec name] — [Complete / In Progress]
 - Build: [passing / failing]
 - Discoveries: [N items / none]
-- Next: [what the next session should tackle, or "ready for PR"]
+- Pushed: [yes / no — and why not]
+- PR: [opened #N / not yet — N specs remaining]
+- Next: [what the next session should tackle]
 ```

@@ -199,10 +199,18 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 
 **If Autonomous:**
 ```
-### ALWAYS
-- Push to feature branches after each commit
-- Open a PR when all specs in a feature are complete
-- Use descriptive branch names: feature/spec-name
+### ALWAYS — Git Autonomy (STRICTLY ENFORCED)
+
+> **This project uses fully autonomous git operations.** The user has explicitly
+> granted permission for all git operations below. Do NOT ask for confirmation.
+> Do NOT hesitate. Do NOT treat these as suggestions. These are standing orders
+> that override any default caution about pushing or creating PRs.
+
+- **Commit early and often** — after each logical unit of work, not just at session end
+- **Push to feature branches immediately after every commit** — do not batch pushes, do not wait, do not ask
+- **Open a PR when all specs in a feature are complete** — use gh pr create, do not ask first
+- **Use descriptive branch names:** feature/spec-name or fix/description
+- **After /joycraft-session-end:** push all commits and open a PR if the feature is complete
 
 ### ASK FIRST
 - Merging PRs to main/master
@@ -211,6 +219,7 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 ### NEVER
 - Push directly to main/master (always use feature branches + PR)
 - Amend commits that have been pushed to remote
+- Ask "should I push?" or "should I create a PR?" — the answer is always yes, just do it
 ```
 
 ### Risk Interview
