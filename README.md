@@ -71,9 +71,11 @@ Joycraft auto-detects your tech stack and creates:
   - `/joycraft-new-feature` Interview → Feature Brief → Atomic Specs
   - `/joycraft-interview` Lightweight brainstorm. Yap about ideas, get a structured summary
   - `/joycraft-decompose` Break a brief into small, testable specs
-  - `/joycraft-session-end` Capture discoveries, verify, commit
+  - `/joycraft-add-fact` Capture project knowledge on the fly -- routes to the right context doc
+  - `/joycraft-session-end` Capture discoveries, verify, commit, push
   - `/joycraft-implement-level5` Set up Level 5 (autofix loop, holdout scenarios, scenario evolution)
-- **docs/** structure: `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`
+- **docs/** structure: `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`, `context/`
+- **Context documents** in `docs/context/`: production map, dangerous assumptions, decision log, institutional knowledge, and troubleshooting guide
 - **Templates** including atomic spec, feature brief, implementation plan, boundary framework, and workflow templates for scenario generation and autofix loops
 
 Once you reach Level 4, you can set up the autonomous loop with `/joycraft-implement-level5`. See [Level 5: The Autonomous Loop](#level-5-the-autonomous-loop) below.
@@ -93,7 +95,8 @@ After init, open Claude Code and use the installed skills:
 /joycraft-interview             # Brainstorm freely, yap about ideas, get a structured summary
 /joycraft-new-feature           # Interview → Feature Brief → Atomic Specs → ready to execute
 /joycraft-decompose             # Break any feature into small, independent specs
-/joycraft-session-end           # Wrap up: discoveries, verification, commit
+/joycraft-add-fact              # Capture a fact mid-session -- auto-routes to the right context doc
+/joycraft-session-end           # Wrap up: discoveries, verification, commit, push
 /joycraft-implement-level5     # Set up Level 5 (autofix, holdout scenarios, evolution)
 ```
 
