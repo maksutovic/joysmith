@@ -908,6 +908,28 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 - Ask "should I push?" or "should I create a PR?" — the answer is always yes, just do it
 \`\`\`
 
+### Permission Mode Recommendation
+
+After the git autonomy question and before the risk interview, recommend a Claude Code permission mode based on what you've learned so far. Present this guidance:
+
+> **What permission mode should you use?**
+>
+> | Your situation | Use | Why |
+> |---|---|---|
+> | Autonomous spec execution | \`--permission-mode dontAsk\` + allowlist | Only pre-approved commands run |
+> | Long session with some trust | \`--permission-mode auto\` | Safety classifier reviews each action |
+> | Interactive development | \`--permission-mode acceptEdits\` | Auto-approves file edits, prompts for commands |
+>
+> You do NOT need \`--dangerously-skip-permissions\`. The modes above provide autonomy with safety.
+
+**If the user chose Autonomous git:** Recommend \`auto\` mode as a good default -- it provides autonomy while the safety classifier catches risky operations. Note that \`dontAsk\` is even more autonomous but requires a well-configured allowlist.
+
+**If the user chose Cautious git:** Recommend \`auto\` mode -- it matches their preference for safety with less manual intervention than the default.
+
+**If the risk interview reveals production databases, live APIs, or billing systems:** Upgrade the recommendation to \`dontAsk\` with a tight allowlist. Explain that \`dontAsk\` with explicit deny patterns is safer than \`auto\` for high-risk environments because it uses a deterministic allowlist rather than a classifier.
+
+This is informational only -- do not change the user's permission mode. Just tell them what to use when they launch Claude Code.
+
 ### Risk Interview
 
 Before applying upgrades, ask 3-5 targeted questions to capture what's dangerous in this project. Skip this if \`docs/context/production-map.md\` or \`docs/context/dangerous-assumptions.md\` already exist (offer to update instead).
@@ -1306,6 +1328,26 @@ Adjust the content based on the actual interview responses:
 - Only include NEVER rules for directories/files the user specified
 - If the user allowed certain network tools or package managers, exclude those
 
+## Recommended Permission Mode
+
+After generating the boundaries above, also recommend a Claude Code permission mode. Include this section in your output:
+
+\`\`\`
+### Recommended Permission Mode
+
+You don't need \\\`--dangerously-skip-permissions\\\`. Safer alternatives exist:
+
+| Your situation | Use | Why |
+|---|---|---|
+| Autonomous spec execution | \\\`--permission-mode dontAsk\\\` + allowlist above | Only pre-approved commands run |
+| Long session with some trust | \\\`--permission-mode auto\\\` | Safety classifier reviews each action |
+| Interactive development | \\\`--permission-mode acceptEdits\\\` | Auto-approves file edits, prompts for commands |
+
+**For lockdown mode, we recommend \\\`--permission-mode dontAsk\\\`** combined with the deny patterns above. This gives you full autonomy for allowed operations while blocking everything else -- no classifier overhead, no prompts, and no safety bypass.
+
+\\\`--dangerously-skip-permissions\\\` disables ALL safety checks. The modes above give you autonomy without removing the guardrails.
+\`\`\`
+
 ## Step 4: Offer to Apply
 
 If the user asks you to apply the changes:
@@ -1314,6 +1356,150 @@ If the user asks you to apply the changes:
 2. **For settings.json:** Read the existing \`.claude/settings.json\`, show the user what the \`permissions.deny\` array will look like after adding the new patterns. Ask for confirmation before writing.
 
 **Never auto-apply. Always show the exact changes and wait for explicit approval.**
+`,
+
+  "joycraft-verify.md": `---
+name: joycraft-verify
+description: Spawn an independent verifier subagent to check an implementation against its spec -- read-only, no code edits, structured pass/fail verdict
+---
+
+# Verify Implementation Against Spec
+
+The user wants independent verification of an implementation. Your job is to find the relevant spec, extract its acceptance criteria and test plan, then spawn a separate verifier subagent that checks each criterion and produces a structured verdict.
+
+**Why a separate subagent?** Anthropic's research found that agents reliably skew positive when grading their own work. Separating the agent doing the work from the agent judging it consistently outperforms self-evaluation. The verifier gets a clean context window with no implementation bias.
+
+## Step 1: Find the Spec
+
+If the user provided a spec path (e.g., \`/joycraft-verify docs/specs/2026-03-26-add-widget.md\`), use that path directly.
+
+If no path was provided, scan \`docs/specs/\` for spec files. Pick the most recently modified \`.md\` file in that directory. If \`docs/specs/\` doesn't exist or is empty, tell the user:
+
+> No specs found in \`docs/specs/\`. Please provide a spec path: \`/joycraft-verify path/to/spec.md\`
+
+## Step 2: Read and Parse the Spec
+
+Read the spec file and extract:
+
+1. **Spec name** -- from the H1 title
+2. **Acceptance Criteria** -- the checklist under the \`## Acceptance Criteria\` section
+3. **Test Plan** -- the table under the \`## Test Plan\` section, including any test commands
+4. **Constraints** -- the \`## Constraints\` section if present
+
+If the spec has no Acceptance Criteria section, tell the user:
+
+> This spec doesn't have an Acceptance Criteria section. Verification needs criteria to check against. Add acceptance criteria to the spec and try again.
+
+If the spec has no Test Plan section, note this but proceed -- the verifier can still check criteria by reading code and running any available project tests.
+
+## Step 3: Identify Test Commands
+
+Look for test commands in these locations (in priority order):
+
+1. The spec's Test Plan section (look for commands in backticks or "Type" column entries like "unit", "integration", "e2e", "build")
+2. The project's CLAUDE.md (look for test/build commands in the Development Workflow section)
+3. Common defaults based on the project type:
+   - Node.js: \`npm test\` or \`pnpm test --run\`
+   - Python: \`pytest\`
+   - Rust: \`cargo test\`
+   - Go: \`go test ./...\`
+
+Build a list of specific commands the verifier should run.
+
+## Step 4: Spawn the Verifier Subagent
+
+Use Claude Code's Agent tool to spawn a subagent with the following prompt. Replace the placeholders with the actual content extracted in Steps 2-3.
+
+\`\`\`
+You are a QA verifier. Your job is to independently verify an implementation against its spec. You have NO context about how the implementation was done -- you are checking it fresh.
+
+RULES -- these are hard constraints, not suggestions:
+- You may READ any file using the Read tool or cat
+- You may RUN these specific test/build commands: [TEST_COMMANDS]
+- You may NOT edit, create, or delete any files
+- You may NOT run commands that modify state (no git commit, no npm install, no file writes)
+- You may NOT install packages or access the network
+- Report what you OBSERVE, not what you expect or hope
+
+SPEC NAME: [SPEC_NAME]
+
+ACCEPTANCE CRITERIA:
+[ACCEPTANCE_CRITERIA]
+
+TEST PLAN:
+[TEST_PLAN]
+
+CONSTRAINTS:
+[CONSTRAINTS_OR_NONE]
+
+YOUR TASK:
+For each acceptance criterion, determine if it PASSES or FAILS based on evidence:
+
+1. Run the test commands listed above. Record the output.
+2. For each acceptance criterion:
+   a. Check if there is a corresponding test and whether it passes
+   b. If no test exists, read the relevant source files to verify the criterion is met
+   c. If the criterion cannot be verified by reading code or running tests, mark it MANUAL CHECK NEEDED
+3. For criteria about build/test passing, actually run the commands and report results.
+
+OUTPUT FORMAT -- you MUST use this exact format:
+
+VERIFICATION REPORT
+
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| 1 | [criterion text] | PASS/FAIL/MANUAL CHECK NEEDED | [what you observed] |
+| 2 | [criterion text] | PASS/FAIL/MANUAL CHECK NEEDED | [what you observed] |
+[continue for all criteria]
+
+SUMMARY: X/Y criteria passed. [Z failures need attention. / All criteria verified.]
+
+If any test commands fail to run (missing dependencies, wrong command, etc.), report the error as evidence for a FAIL verdict on the relevant criterion.
+\`\`\`
+
+## Step 5: Format and Present the Verdict
+
+Take the subagent's response and present it to the user in this format:
+
+\`\`\`
+## Verification Report -- [Spec Name]
+
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| 1 | ... | PASS | ... |
+| 2 | ... | FAIL | ... |
+
+**Overall: X/Y criteria passed.**
+
+[If all passed:]
+All criteria verified. Ready to commit and open a PR.
+
+[If any failed:]
+N failures need attention. Review the evidence above and fix before proceeding.
+
+[If any MANUAL CHECK NEEDED:]
+N criteria need manual verification -- they can't be checked by reading code or running tests alone.
+\`\`\`
+
+## Step 6: Suggest Next Steps
+
+Based on the verdict:
+
+- **All PASS:** Suggest committing and opening a PR, or running \`/joycraft-session-end\` to capture discoveries.
+- **Some FAIL:** List the failed criteria and suggest the user fix them, then run \`/joycraft-verify\` again.
+- **MANUAL CHECK NEEDED items:** Explain what needs human eyes and why automation couldn't verify it.
+
+**Do NOT offer to fix failures yourself.** The verifier reports; the human (or implementation agent in a separate turn) decides what to do. This separation is the whole point.
+
+## Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| Spec has no Test Plan | Warn that verification is weaker without a test plan, but proceed by checking criteria through code reading and any available project-level tests |
+| All tests pass but a criterion is not testable | Mark as MANUAL CHECK NEEDED with explanation |
+| Subagent can't run tests (missing deps) | Report the error as FAIL evidence |
+| No specs found and no path given | Tell user to provide a spec path or create a spec first |
+| Spec status is "Complete" | Still run verification -- "Complete" means the implementer thinks it's done, verification confirms |
 `,
 
 };

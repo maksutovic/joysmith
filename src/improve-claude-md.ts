@@ -51,6 +51,7 @@ function generateBoundariesSection(): string {
 
 ### ALWAYS
 - Run tests and type-check before committing
+- Run tests before implementing new features -- confirm they fail first, then implement until they pass
 - Use \`verb: concise message\` format for commits
 - Commit after completing each discrete task (atomic commits)
 - Stage specific files by name (not \`git add -A\` or \`git add .\`)

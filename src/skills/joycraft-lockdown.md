@@ -95,6 +95,26 @@ Adjust the content based on the actual interview responses:
 - Only include NEVER rules for directories/files the user specified
 - If the user allowed certain network tools or package managers, exclude those
 
+## Recommended Permission Mode
+
+After generating the boundaries above, also recommend a Claude Code permission mode. Include this section in your output:
+
+```
+### Recommended Permission Mode
+
+You don't need `--dangerously-skip-permissions`. Safer alternatives exist:
+
+| Your situation | Use | Why |
+|---|---|---|
+| Autonomous spec execution | `--permission-mode dontAsk` + allowlist above | Only pre-approved commands run |
+| Long session with some trust | `--permission-mode auto` | Safety classifier reviews each action |
+| Interactive development | `--permission-mode acceptEdits` | Auto-approves file edits, prompts for commands |
+
+**For lockdown mode, we recommend `--permission-mode dontAsk`** combined with the deny patterns above. This gives you full autonomy for allowed operations while blocking everything else -- no classifier overhead, no prompts, and no safety bypass.
+
+`--dangerously-skip-permissions` disables ALL safety checks. The modes above give you autonomy without removing the guardrails.
+```
+
 ## Step 4: Offer to Apply
 
 If the user asks you to apply the changes:
