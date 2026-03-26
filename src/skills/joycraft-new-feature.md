@@ -132,6 +132,24 @@ One sentence — what breaks or is missing without this?
 - [ ] Build passes
 - [ ] Tests pass
 
+## Test Plan
+
+| Acceptance Criterion | Test | Type |
+|---------------------|------|------|
+| [Each AC above] | [What to call/assert] | [unit/integration/e2e] |
+
+**Execution order:**
+1. Write all tests above — they should fail against current/stubbed code
+2. Run tests to confirm they fail (red)
+3. Implement until all tests pass (green)
+
+**Smoke test:** [Identify the fastest test for iteration feedback]
+
+**Before implementing, verify your test harness:**
+1. Run all tests — they must FAIL (if they pass, you're testing the wrong thing)
+2. Each test calls your actual function/endpoint — not a reimplementation or the underlying library
+3. Identify your smoke test — it must run in seconds, not minutes, so you get fast feedback on each change
+
 ## Constraints
 - MUST: [hard requirement]
 - MUST NOT: [hard prohibition]

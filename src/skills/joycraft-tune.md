@@ -222,6 +222,28 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 - Ask "should I push?" or "should I create a PR?" — the answer is always yes, just do it
 ```
 
+### Permission Mode Recommendation
+
+After the git autonomy question and before the risk interview, recommend a Claude Code permission mode based on what you've learned so far. Present this guidance:
+
+> **What permission mode should you use?**
+>
+> | Your situation | Use | Why |
+> |---|---|---|
+> | Autonomous spec execution | `--permission-mode dontAsk` + allowlist | Only pre-approved commands run |
+> | Long session with some trust | `--permission-mode auto` | Safety classifier reviews each action |
+> | Interactive development | `--permission-mode acceptEdits` | Auto-approves file edits, prompts for commands |
+>
+> You do NOT need `--dangerously-skip-permissions`. The modes above provide autonomy with safety.
+
+**If the user chose Autonomous git:** Recommend `auto` mode as a good default -- it provides autonomy while the safety classifier catches risky operations. Note that `dontAsk` is even more autonomous but requires a well-configured allowlist.
+
+**If the user chose Cautious git:** Recommend `auto` mode -- it matches their preference for safety with less manual intervention than the default.
+
+**If the risk interview reveals production databases, live APIs, or billing systems:** Upgrade the recommendation to `dontAsk` with a tight allowlist. Explain that `dontAsk` with explicit deny patterns is safer than `auto` for high-risk environments because it uses a deterministic allowlist rather than a classifier.
+
+This is informational only -- do not change the user's permission mode. Just tell them what to use when they launch Claude Code.
+
 ### Risk Interview
 
 Before applying upgrades, ask 3-5 targeted questions to capture what's dangerous in this project. Skip this if `docs/context/production-map.md` or `docs/context/dangerous-assumptions.md` already exist (offer to update instead).
