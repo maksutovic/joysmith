@@ -177,19 +177,21 @@ Accept the default or the user's choice.
 
 ### Question 2: GitHub App
 
-> Level 5 needs a GitHub App to provide a separate identity for autofix pushes (this avoids GitHub's anti-recursion protection).
+> Level 5 needs a GitHub App to provide a separate identity for autofix pushes (this avoids GitHub's anti-recursion protection). Creating one takes about 2 minutes:
 >
-> **Option A:** Install the shared Joycraft Autofix app (quickest — 1 click)
-> **Option B:** Create your own GitHub App (more control)
+> 1. Go to https://github.com/settings/apps/new
+> 2. Give it a name (e.g., "My Project Autofix")
+> 3. Uncheck "Webhook > Active" (not needed)
+> 4. Under **Repository permissions**, set:
+>    - **Contents**: Read & Write
+>    - **Pull requests**: Read & Write
+>    - **Actions**: Read & Write
+> 5. Click **Create GitHub App**
+> 6. Note the **App ID** from the settings page
+> 7. Scroll to **Private keys** > click **Generate a private key** > save the \`.pem\` file
+> 8. Click **Install App** in the left sidebar > install it on your repo
 >
-> Which do you prefer?
-
-If Option A: The App ID is \`3180156\`. Note this for later.
-If Option B: Guide them to create an app at \`https://github.com/settings/apps/new\` with permissions: Contents (Read & Write), Pull Requests (Read & Write), Actions (Read & Write). They'll need the App ID from the settings page.
-
-### Question 3: App ID
-
-If they chose Option B, ask for their App ID. If Option A, use \`3180156\`.
+> What's your App ID?
 
 ## Step 3: Run init-autofix
 
@@ -205,28 +207,15 @@ Review the output with the user. Confirm files were created.
 
 Guide the user step by step:
 
-### 4a: GitHub App Private Key
+### 4a: Add Secrets to Main Repo
 
-> If you chose the shared Joycraft Autofix app, you'll need to generate a private key:
-> 1. Go to https://github.com/settings/apps/joycraft-autofix
-> 2. Scroll to "Private keys" and generate one
-> 3. Download the \`.pem\` file
->
-> If you created your own app, generate a private key from your app's settings page.
-
-### 4b: Add Secrets to Main Repo
+> You should already have the \`.pem\` file from when you created the app in Step 2.
 
 > Go to your repo's Settings > Secrets and variables > Actions, and add:
 > - \`JOYCRAFT_APP_PRIVATE_KEY\` — paste the contents of your \`.pem\` file
 > - \`ANTHROPIC_API_KEY\` — your Anthropic API key
 
-### 4c: Install the App
-
-> The GitHub App needs to be installed on your repo:
-> - Shared app: https://github.com/apps/joycraft-autofix/installations/new
-> - Own app: Go to your app's settings > Install App
-
-### 4d: Create the Scenarios Repo
+### 4b: Create the Scenarios Repo
 
 > Create the private scenarios repo:
 > \`\`\`bash
@@ -241,9 +230,9 @@ Guide the user step by step:
 > git push
 > \`\`\`
 
-### 4e: Add Secrets to Scenarios Repo
+### 4c: Add Secrets to Scenarios Repo
 
-> The scenarios repo also needs the App private key:
+> The scenarios repo also needs the same secrets:
 > - \`JOYCRAFT_APP_PRIVATE_KEY\` — same \`.pem\` file as the main repo
 > - \`ANTHROPIC_API_KEY\` — same key (needed for scenario generation)
 
@@ -636,14 +625,26 @@ If working from a Feature Brief in \`docs/briefs/\`, check off completed specs i
 
 Commit all changes including the discovery file (if created) and spec status updates. The commit message should reference the spec if applicable.
 
-## 5. Report
+## 5. Push and PR (if autonomous git is enabled)
+
+**Check CLAUDE.md for "Git Autonomy" in the Behavioral Boundaries section.** If it says "STRICTLY ENFORCED" or the ALWAYS section includes "Push to feature branches immediately after every commit":
+
+1. **Push immediately.** Run \`git push origin <branch>\` — do not ask, do not hesitate.
+2. **Open a PR if the feature is complete.** Check the parent Feature Brief's decomposition table — if all specs are done, run \`gh pr create\` with a summary of all completed specs. Do not ask first.
+3. **If not all specs are done,** still push. The PR comes when the last spec is complete.
+
+If CLAUDE.md does NOT have autonomous git rules (or has "ASK FIRST" for pushing), ask the user before pushing.
+
+## 6. Report
 
 \`\`\`
 Session complete.
 - Spec: [spec name] — [Complete / In Progress]
 - Build: [passing / failing]
 - Discoveries: [N items / none]
-- Next: [what the next session should tackle, or "ready for PR"]
+- Pushed: [yes / no — and why not]
+- PR: [opened #N / not yet — N specs remaining]
+- Next: [what the next session should tackle]
 \`\`\`
 `,
 
@@ -848,10 +849,18 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 
 **If Autonomous:**
 \`\`\`
-### ALWAYS
-- Push to feature branches after each commit
-- Open a PR when all specs in a feature are complete
-- Use descriptive branch names: feature/spec-name
+### ALWAYS — Git Autonomy (STRICTLY ENFORCED)
+
+> **This project uses fully autonomous git operations.** The user has explicitly
+> granted permission for all git operations below. Do NOT ask for confirmation.
+> Do NOT hesitate. Do NOT treat these as suggestions. These are standing orders
+> that override any default caution about pushing or creating PRs.
+
+- **Commit early and often** — after each logical unit of work, not just at session end
+- **Push to feature branches immediately after every commit** — do not batch pushes, do not wait, do not ask
+- **Open a PR when all specs in a feature are complete** — use gh pr create, do not ask first
+- **Use descriptive branch names:** feature/spec-name or fix/description
+- **After /joycraft-session-end:** push all commits and open a PR if the feature is complete
 
 ### ASK FIRST
 - Merging PRs to main/master
@@ -860,6 +869,7 @@ Based on their answer, use the appropriate git rules in the Behavioral Boundarie
 ### NEVER
 - Push directly to main/master (always use feature branches + PR)
 - Amend commits that have been pushed to remote
+- Ask "should I push?" or "should I create a PR?" — the answer is always yes, just do it
 \`\`\`
 
 ### Risk Interview
@@ -998,6 +1008,171 @@ Tailor the "Next Steps" section based on the project's actual gaps — don't sho
 - **Non-Joycraft content in CLAUDE.md:** Preserve exactly as-is. Only append or merge — never remove or reformat existing content.
 `,
 
+  "joycraft-add-fact.md": `---
+name: joycraft-add-fact
+description: Capture a project fact and route it to the correct context document -- production map, dangerous assumptions, decision log, institutional knowledge, or troubleshooting
+---
+
+# Add Fact
+
+The user has a fact to capture. Your job is to classify it, route it to the correct context document, append it in the right format, and optionally add a CLAUDE.md boundary rule.
+
+## Step 1: Get the Fact
+
+If the user already provided the fact (e.g., \`/joycraft-add-fact the staging DB resets every Sunday\`), use it directly.
+
+If not, ask: "What fact do you want to capture?" -- then wait for their response.
+
+If the user provides multiple facts at once, process each one separately through all the steps below, then give a combined confirmation at the end.
+
+## Step 2: Classify the Fact
+
+Route the fact to one of these 5 context documents based on its content:
+
+### \`docs/context/production-map.md\`
+The fact is about **infrastructure, services, environments, URLs, endpoints, credentials, or what is safe/unsafe to touch**.
+- Signal words: "production", "staging", "endpoint", "URL", "database", "service", "deployed", "hosted", "credentials", "secret", "environment"
+- Examples: "The staging DB is at postgres://staging.example.com", "We use Vercel for the frontend and Railway for the API"
+
+### \`docs/context/dangerous-assumptions.md\`
+The fact is about **something an AI agent might get wrong -- a false assumption that leads to bad outcomes**.
+- Signal words: "assumes", "might think", "but actually", "looks like X but is Y", "not what it seems", "trap", "gotcha"
+- Examples: "The \\\`users\\\` table looks like a test table but it's production", "Deleting a workspace doesn't delete the billing subscription"
+
+### \`docs/context/decision-log.md\`
+The fact is about **an architectural or tooling choice and why it was made**.
+- Signal words: "decided", "chose", "because", "instead of", "we went with", "the reason we use", "trade-off"
+- Examples: "We chose SQLite over Postgres because this runs on embedded devices", "We use pnpm instead of npm for workspace support"
+
+### \`docs/context/institutional-knowledge.md\`
+The fact is about **team conventions, unwritten rules, organizational context, or who owns what**.
+- Signal words: "convention", "rule", "always", "never", "team", "process", "review", "approval", "owns", "responsible"
+- Examples: "The design team reviews all color changes", "We never deploy on Fridays", "PR titles must start with the ticket number"
+
+### \`docs/context/troubleshooting.md\`
+The fact is about **diagnostic knowledge -- when X happens, do Y (or don't do Z)**.
+- Signal words: "when", "fails", "error", "if you see", "stuck", "broken", "fix", "workaround", "before trying", "reboot", "restart", "reset"
+- Examples: "If Wi-Fi disconnects during flash, wait and retry -- don't switch networks", "When tests fail with ECONNREFUSED, check if Docker is running"
+
+### Ambiguous Facts
+
+If the fact fits multiple categories, pick the **best fit** based on the primary intent. You will mention the alternative in your confirmation message so the user can correct you.
+
+## Step 3: Ensure the Target Document Exists
+
+1. If \`docs/context/\` does not exist, create the directory.
+2. If the target document does not exist, create it from the template structure. Check \`docs/templates/\` for the matching template. If no template exists, use this minimal structure:
+
+For **production-map.md**:
+\`\`\`markdown
+# Production Map
+
+> What's real, what's staging, what's safe to touch.
+
+## Services
+
+| Service | Environment | URL/Endpoint | Impact if Corrupted |
+|---------|-------------|-------------|-------------------|
+\`\`\`
+
+For **dangerous-assumptions.md**:
+\`\`\`markdown
+# Dangerous Assumptions
+
+> Things the AI agent might assume that are wrong in this project.
+
+## Assumptions
+
+| Agent Might Assume | But Actually | Impact If Wrong |
+|-------------------|-------------|----------------|
+\`\`\`
+
+For **decision-log.md**:
+\`\`\`markdown
+# Decision Log
+
+> Why choices were made, not just what was chosen.
+
+## Decisions
+
+| Date | Decision | Why | Alternatives Rejected | Revisit When |
+|------|----------|-----|----------------------|-------------|
+\`\`\`
+
+For **institutional-knowledge.md**:
+\`\`\`markdown
+# Institutional Knowledge
+
+> Unwritten rules, team conventions, and organizational context.
+
+## Team Conventions
+
+- (none yet)
+\`\`\`
+
+For **troubleshooting.md**:
+\`\`\`markdown
+# Troubleshooting
+
+> What to do when things go wrong for non-code reasons.
+
+## Common Failures
+
+| When This Happens | Do This | Don't Do This |
+|-------------------|---------|---------------|
+\`\`\`
+
+## Step 4: Read the Target Document
+
+Read the target document to understand its current structure. Note:
+- Which section to append to
+- Whether it uses tables or lists
+- The column format if it's a table
+
+## Step 5: Append the Fact
+
+Add the fact to the appropriate section of the target document. Match the existing format exactly:
+
+- **Table-based documents** (production-map, dangerous-assumptions, decision-log, troubleshooting): Add a new table row in the correct columns. Use today's date where a date column exists.
+- **List-based documents** (institutional-knowledge): Add a new list item (\`- \`) to the most appropriate section.
+
+Remove any italic example rows (rows where all cells start with \`_\`) before appending, so the document transitions from template to real content. Only remove examples from the specific table you are appending to.
+
+**Append only. Never modify or remove existing real content.**
+
+## Step 6: Evaluate CLAUDE.md Boundary Rule
+
+Decide whether the fact also warrants a rule in CLAUDE.md's behavioral boundaries:
+
+**Add a CLAUDE.md rule if the fact:**
+- Describes something that should ALWAYS or NEVER be done
+- Could cause real damage if violated (data loss, broken deployments, security issues)
+- Is a hard constraint that applies across all work, not just a one-time note
+
+**Do NOT add a CLAUDE.md rule if the fact is:**
+- Purely informational (e.g., "staging DB is at this URL")
+- A one-time decision that's already captured
+- A diagnostic tip rather than a prohibition
+
+If a rule is warranted, read CLAUDE.md, find the appropriate section (ALWAYS, ASK FIRST, or NEVER under Behavioral Boundaries), and append the rule. If no Behavioral Boundaries section exists, append one.
+
+## Step 7: Confirm
+
+Report what you did in this format:
+
+\`\`\`
+Added to [document name]:
+  [summary of what was added]
+
+[If CLAUDE.md was also updated:]
+Added CLAUDE.md rule:
+  [ALWAYS/ASK FIRST/NEVER]: [rule text]
+
+[If the fact was ambiguous:]
+Routed to [chosen doc] -- move to [alternative doc] if this is more about [alternative category description].
+\`\`\`
+`,
+
 };
 
 export const TEMPLATES: Record<string, string> = {
@@ -1106,6 +1281,48 @@ _Who owns what, who to ask, who cares about what._
 - [ ] Production database
 - [ ] Live API endpoints
 - [ ] User-facing infrastructure
+`,
+
+  "context/troubleshooting.md": `# Troubleshooting
+
+> What to do when things go wrong for non-code reasons.
+> Environment issues, flaky dependencies, hardware quirks, and diagnostic steps.
+> Update when you discover new failure modes and their fixes.
+
+## Common Failures
+
+| When This Happens | Do This | Don't Do This |
+|-------------------|---------|---------------|
+| _Example: Tests fail with ECONNREFUSED_ | _Check if the dev database is running_ | _Don't rewrite the test or mock the connection_ |
+| _Example: Build fails with out-of-memory_ | _Increase Node heap size or close other processes_ | _Don't simplify the code to reduce bundle size_ |
+| _Example: Lint passes locally but fails in CI_ | _Check Node/tool version mismatch between local and CI_ | _Don't disable the lint rule_ |
+
+## Environment Issues
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| _Example: "Module not found" after branch switch_ | _Dependencies changed on the new branch_ | _Run the package manager install command_ |
+| _Example: Port already in use_ | _Previous dev server didn't shut down cleanly_ | _Kill the process on that port or use a different one_ |
+| _Example: Permission denied on file/directory_ | _File ownership or permission mismatch_ | _Check and fix file permissions, don't run as root_ |
+
+## Diagnostic Steps
+
+_When something fails unexpectedly, follow this sequence before trying to fix the code:_
+
+1. **Check the error message literally** -- don't assume what it means, read it
+2. **Check environment prerequisites** -- are all services running? Correct versions?
+3. **Check recent changes** -- did a config file, dependency, or environment variable change?
+4. **Check network/connectivity** -- is the internet up? Are external services reachable?
+5. **Search project docs first** -- check this file and \`docs/discoveries/\` before web searching
+
+## "Stop and Ask" Scenarios
+
+_Situations where the AI agent should stop and ask the human instead of trying to fix things._
+
+- _Example: Hardware device not responding -- the human may need to physically reconnect it_
+- _Example: Authentication token expired -- the human needs to re-authenticate manually_
+- _Example: CI pipeline blocked by a required approval -- a human needs to approve it_
+- _Example: Error messages referencing infrastructure the agent doesn't have access to_
 `,
 
   "examples/example-brief.md": `# Add User Notifications — Feature Brief

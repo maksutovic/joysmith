@@ -51,6 +51,7 @@ describe('init', () => {
       expect(existsSync(join(tmpDir, 'docs', 'templates', 'examples', 'example-spec.md'))).toBe(true);
       expect(existsSync(join(tmpDir, 'docs', 'templates', 'examples', 'example-brief.md'))).toBe(true);
       expect(existsSync(join(tmpDir, 'docs', 'templates', 'context', 'production-map.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'docs', 'templates', 'context', 'troubleshooting.md'))).toBe(true);
     });
   });
 
@@ -242,6 +243,133 @@ describe('init', () => {
       expect(settings.permissions.allow).toContain('Bash(custom-tool *)');
       expect(settings.permissions.deny).toContain('Bash(dangerous-thing *)');
       expect(settings.permissions.deny).toContain('Bash(rm -rf *)');
+    });
+  });
+
+  describe('settings.json resilience', () => {
+    it('preserves custom hooks in pre-existing settings.json', async () => {
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'settings.json'), JSON.stringify({
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Bash',
+            hooks: [{
+              type: 'command',
+              command: 'echo "custom pre-tool hook"',
+            }],
+          }],
+        },
+      }, null, 2) + '\n');
+
+      await init(tmpDir, { force: false });
+
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf-8'));
+      // Custom hook preserved
+      expect(settings.hooks.PreToolUse).toBeDefined();
+      expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe('echo "custom pre-tool hook"');
+      // Joycraft hook added
+      expect(settings.hooks.SessionStart).toBeDefined();
+      const joycraftHook = settings.hooks.SessionStart.find((h: Record<string, unknown>) => {
+        const innerHooks = h.hooks as Array<Record<string, unknown>> | undefined;
+        return innerHooks?.some(ih => typeof ih.command === 'string' && (ih.command as string).includes('joycraft'));
+      });
+      expect(joycraftHook).toBeDefined();
+    });
+
+    it('warns and skips merge when settings.json is malformed', async () => {
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+      const malformedContent = '{ "hooks": { broken json here';
+      writeFileSync(join(tmpDir, '.claude', 'settings.json'), malformedContent);
+
+      const logs: string[] = [];
+      const origLog = console.log;
+      console.log = (...args: unknown[]) => logs.push(args.join(' '));
+      try {
+        await init(tmpDir, { force: false });
+      } finally {
+        console.log = origLog;
+      }
+
+      // Warning emitted
+      expect(logs.some(l => l.includes('malformed'))).toBe(true);
+      expect(logs.some(l => l.includes('Fix the JSON'))).toBe(true);
+      // File not modified
+      const content = readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf-8');
+      expect(content).toBe(malformedContent);
+    });
+
+    it('preserves existing allow/deny rules and appends Joycraft rules', async () => {
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'settings.json'), JSON.stringify({
+        permissions: {
+          allow: ['Bash(my-custom-tool *)'],
+          deny: ['Bash(my-dangerous-cmd *)'],
+        },
+      }, null, 2) + '\n');
+
+      await init(tmpDir, { force: false });
+
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf-8'));
+      // Existing rules preserved
+      expect(settings.permissions.allow).toContain('Bash(my-custom-tool *)');
+      expect(settings.permissions.deny).toContain('Bash(my-dangerous-cmd *)');
+      // Joycraft rules appended
+      expect(settings.permissions.allow).toContain('Bash(git status)');
+      expect(settings.permissions.deny).toContain('Bash(rm -rf *)');
+      expect(settings.permissions.deny).toContain('Edit(//.env*)');
+    });
+  });
+
+  describe('existing non-Joycraft skills', () => {
+    it('includes Project Tools section in CLAUDE.md when non-Joycraft skills exist', async () => {
+      // Pre-create non-Joycraft skill directories
+      mkdirSync(join(tmpDir, '.claude', 'skills', 'flash-deploy'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'flash-deploy', 'SKILL.md'), 'deploy skill');
+      mkdirSync(join(tmpDir, '.claude', 'skills', 'log-watcher'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'log-watcher', 'SKILL.md'), 'log skill');
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).toContain('## Project Tools');
+      expect(claude).toContain('flash-deploy');
+      expect(claude).toContain('log-watcher');
+      expect(claude).toContain('.claude/skills/');
+    });
+
+    it('does not include Project Tools section when no non-Joycraft skills exist', async () => {
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).not.toContain('## Project Tools');
+    });
+
+    it('prints a note about existing skills during init', async () => {
+      mkdirSync(join(tmpDir, '.claude', 'skills', 'my-tool'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'my-tool', 'SKILL.md'), 'tool');
+
+      const logs: string[] = [];
+      const origLog = console.log;
+      console.log = (...args: unknown[]) => logs.push(args.join(' '));
+      try {
+        await init(tmpDir, { force: false });
+      } finally {
+        console.log = origLog;
+      }
+
+      expect(logs.some(l => l.includes('Found existing skills') && l.includes('my-tool'))).toBe(true);
+      expect(logs.some(l => l.includes('Joycraft is additive'))).toBe(true);
+    });
+
+    it('ignores joycraft-prefixed directories when scanning for existing skills', async () => {
+      // Pre-create a joycraft-prefixed skill (simulating previous init)
+      mkdirSync(join(tmpDir, '.claude', 'skills', 'joycraft-tune'), { recursive: true });
+      writeFileSync(join(tmpDir, '.claude', 'skills', 'joycraft-tune', 'SKILL.md'), 'tune');
+
+      await init(tmpDir, { force: false });
+
+      const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(claude).not.toContain('## Project Tools');
     });
   });
 

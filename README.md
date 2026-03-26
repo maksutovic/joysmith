@@ -71,9 +71,11 @@ Joycraft auto-detects your tech stack and creates:
   - `/joycraft-new-feature` Interview → Feature Brief → Atomic Specs
   - `/joycraft-interview` Lightweight brainstorm. Yap about ideas, get a structured summary
   - `/joycraft-decompose` Break a brief into small, testable specs
-  - `/joycraft-session-end` Capture discoveries, verify, commit
+  - `/joycraft-add-fact` Capture project knowledge on the fly -- routes to the right context doc
+  - `/joycraft-session-end` Capture discoveries, verify, commit, push
   - `/joycraft-implement-level5` Set up Level 5 (autofix loop, holdout scenarios, scenario evolution)
-- **docs/** structure: `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`
+- **docs/** structure: `briefs/`, `specs/`, `discoveries/`, `contracts/`, `decisions/`, `context/`
+- **Context documents** in `docs/context/`: production map, dangerous assumptions, decision log, institutional knowledge, and troubleshooting guide
 - **Templates** including atomic spec, feature brief, implementation plan, boundary framework, and workflow templates for scenario generation and autofix loops
 
 Once you reach Level 4, you can set up the autonomous loop with `/joycraft-implement-level5`. See [Level 5: The Autonomous Loop](#level-5-the-autonomous-loop) below.
@@ -93,7 +95,8 @@ After init, open Claude Code and use the installed skills:
 /joycraft-interview             # Brainstorm freely, yap about ideas, get a structured summary
 /joycraft-new-feature           # Interview → Feature Brief → Atomic Specs → ready to execute
 /joycraft-decompose             # Break any feature into small, independent specs
-/joycraft-session-end           # Wrap up: discoveries, verification, commit
+/joycraft-add-fact              # Capture a fact mid-session -- auto-routes to the right context doc
+/joycraft-session-end           # Wrap up: discoveries, verification, commit, push
 /joycraft-implement-level5     # Set up Level 5 (autofix, holdout scenarios, evolution)
 ```
 
@@ -433,11 +436,80 @@ sequenceDiagram
 | Scenarios repo | `package.json` | Minimal vitest setup |
 | Scenarios repo | `README.md` | Explains holdout pattern to contributors |
 
-### Prerequisites
+### Setup Guide
 
-- **GitHub App** provides a separate identity for autofix pushes (avoids GitHub's anti-recursion protection). You can install the shared [Joycraft Autofix](https://github.com/apps/joycraft-autofix) app (App ID: `3180156`) or create your own.
-- **Secrets:** `JOYCRAFT_APP_PRIVATE_KEY` and `ANTHROPIC_API_KEY` on both the main and scenarios repos.
-- **Scenarios repo:** A private repository where holdout tests live. Created during setup.
+The fastest way: run `/joycraft-implement-level5` in Claude Code and it walks you through everything interactively. Or follow these steps manually:
+
+#### Step 1: Create a GitHub App
+
+The autofix workflow needs a GitHub App identity to push commits. GitHub blocks workflows from triggering other workflows with the default `GITHUB_TOKEN` -- a separate App identity solves this. Creating one takes about 2 minutes:
+
+1. Go to https://github.com/settings/apps/new
+2. Give it a name (e.g., "My Project Autofix")
+3. Uncheck "Webhook > Active" (not needed)
+4. Under **Repository permissions**, set:
+   - **Contents**: Read & Write
+   - **Pull requests**: Read & Write
+   - **Actions**: Read & Write
+5. Click **Create GitHub App**
+6. Note the **App ID** from the settings page (you'll need it in Step 2)
+7. Scroll to **Private keys** > click **Generate a private key**
+8. Save the downloaded `.pem` file -- you'll need it in Step 3
+9. Click **Install App** in the left sidebar > install it on the repo(s) you want to use
+
+> **Coming soon:** We're working on a shared Joycraft Autofix app that will reduce this to a single click. For now, creating your own app gives you full control and takes just a couple minutes.
+
+#### Step 2: Run the CLI
+
+```bash
+npx joycraft init-autofix --scenarios-repo my-project-scenarios --app-id YOUR_APP_ID
+```
+
+Replace `YOUR_APP_ID` with the App ID from Step 1. This installs the four workflow files in your main repo and copies scenario templates to `docs/templates/scenarios/`.
+
+#### Step 3: Add secrets to your main repo
+
+Go to your repo's **Settings > Secrets and variables > Actions** and add:
+
+| Secret | Value |
+|--------|-------|
+| `JOYCRAFT_APP_PRIVATE_KEY` | The full contents of the `.pem` file from Step 1 |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key (used by the autofix workflow to run Claude) |
+
+#### Step 4: Create the scenarios repo
+
+```bash
+# Create a private repo for holdout tests
+gh repo create my-project-scenarios --private
+
+# Copy the scenario templates into it
+cp -r docs/templates/scenarios/* ../my-project-scenarios/
+cd ../my-project-scenarios
+git add -A && git commit -m "init: scaffold scenarios repo from Joycraft"
+git push
+```
+
+Then add the **same two secrets** (`JOYCRAFT_APP_PRIVATE_KEY` and `ANTHROPIC_API_KEY`) to the scenarios repo's Settings > Secrets.
+
+#### Step 5: Verify
+
+```bash
+# Check workflow files exist in your main repo
+ls .github/workflows/autofix.yml .github/workflows/scenarios-dispatch.yml \
+   .github/workflows/spec-dispatch.yml .github/workflows/scenarios-rerun.yml
+
+# Check scenario templates in the scenarios repo
+ls ../my-project-scenarios/workflows/run.yml ../my-project-scenarios/workflows/generate.yml \
+   ../my-project-scenarios/prompts/scenario-agent.md ../my-project-scenarios/example-scenario.test.ts
+```
+
+#### Step 6: Test it
+
+1. Push a spec to `docs/specs/` on main -- this triggers scenario generation in the scenarios repo
+2. Open a PR with a small change -- when CI passes, scenarios run against the PR
+3. Watch for the scenario test results posted as a PR comment
+
+Or deliberately break something in a PR to test the autofix loop.
 
 ### Cost
 

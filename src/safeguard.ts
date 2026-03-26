@@ -118,7 +118,8 @@ export function generateDenyPatternsFile(customPatterns: string[] = []): string 
 export function installSafeguardHooks(
   targetDir: string,
   customPatterns: string[] = [],
-  force: boolean = false
+  force: boolean = false,
+  skipSettingsMerge: boolean = false
 ): { created: string[]; skipped: string[] } {
   const result = { created: [] as string[], skipped: [] as string[] };
   const hooksDir = join(targetDir, '.claude', 'hooks', 'joycraft');
@@ -145,34 +146,39 @@ export function installSafeguardHooks(
     result.skipped.push(patternsPath);
   }
 
-  // Register hook in settings.json
-  const settingsPath = join(targetDir, '.claude', 'settings.json');
-  let settings: Record<string, unknown> = {};
-  if (existsSync(settingsPath)) {
-    try {
-      settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-    } catch {}
-  }
+  // Register hook in settings.json (skip if caller detected malformed JSON)
+  if (!skipSettingsMerge) {
+    const settingsPath = join(targetDir, '.claude', 'settings.json');
+    let settings: Record<string, unknown> = {};
+    if (existsSync(settingsPath)) {
+      try {
+        settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+      } catch {
+        // Don't overwrite — caller should handle the warning
+        return result;
+      }
+    }
 
-  if (!settings.hooks) settings.hooks = {};
-  const hooks = settings.hooks as Record<string, unknown[]>;
-  if (!hooks.PreToolUse) hooks.PreToolUse = [];
+    if (!settings.hooks) settings.hooks = {};
+    const hooks = settings.hooks as Record<string, unknown[]>;
+    if (!hooks.PreToolUse) hooks.PreToolUse = [];
 
-  const preToolUse = hooks.PreToolUse as Array<Record<string, unknown>>;
-  const hasJoycraftHook = preToolUse.some(h => {
-    const innerHooks = h.hooks as Array<Record<string, unknown>> | undefined;
-    return innerHooks?.some(ih => typeof ih.command === 'string' && ih.command.includes('joycraft'));
-  });
-
-  if (!hasJoycraftHook) {
-    preToolUse.push({
-      matcher: 'Bash',
-      hooks: [{
-        type: 'command',
-        command: '.claude/hooks/joycraft/block-dangerous.sh',
-      }],
+    const preToolUse = hooks.PreToolUse as Array<Record<string, unknown>>;
+    const hasJoycraftHook = preToolUse.some(h => {
+      const innerHooks = h.hooks as Array<Record<string, unknown>> | undefined;
+      return innerHooks?.some(ih => typeof ih.command === 'string' && ih.command.includes('joycraft'));
     });
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+
+    if (!hasJoycraftHook) {
+      preToolUse.push({
+        matcher: 'Bash',
+        hooks: [{
+          type: 'command',
+          command: '.claude/hooks/joycraft/block-dangerous.sh',
+        }],
+      });
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+    }
   }
 
   return result;

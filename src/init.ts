@@ -1,4 +1,4 @@
-import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, existsSync, writeFileSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, resolve, dirname } from 'node:path';
 import { detectStack } from './detect.js';
 import { generateCLAUDEMd } from './improve-claude-md.js';
@@ -47,8 +47,24 @@ export async function init(dir: string, opts: InitOptions): Promise<void> {
     ensureDir(join(targetDir, 'docs', sub));
   }
 
-  // 2. Copy skill files to .claude/skills/<name>/SKILL.md
+  // 1b. Scan for existing non-Joycraft skills before copying ours
   const skillsDir = join(targetDir, '.claude', 'skills');
+  let existingSkills: string[] = [];
+  if (existsSync(skillsDir)) {
+    existingSkills = readdirSync(skillsDir)
+      .filter(name => {
+        if (name.startsWith('joycraft-')) return false;
+        if (name.startsWith('.')) return false;
+        const fullPath = join(skillsDir, name);
+        try {
+          return statSync(fullPath).isDirectory();
+        } catch {
+          return false;
+        }
+      });
+  }
+
+  // 2. Copy skill files to .claude/skills/<name>/SKILL.md
   for (const [filename, content] of Object.entries(SKILLS)) {
     const skillName = filename.replace(/\.md$/, '');
     const skillDir = join(skillsDir, skillName);
@@ -70,7 +86,7 @@ export async function init(dir: string, opts: InitOptions): Promise<void> {
     result.skipped.push(claudeMdPath);
   } else {
     const projectName = basename(targetDir);
-    const content = generateCLAUDEMd(projectName, stack);
+    const content = generateCLAUDEMd(projectName, stack, existingSkills);
     writeFileSync(claudeMdPath, content, 'utf-8');
     result.created.push(claudeMdPath);
   }
@@ -117,57 +133,70 @@ try {
   // Update .claude/settings.json with SessionStart hook
   const settingsPath = join(targetDir, '.claude', 'settings.json');
   let settings: Record<string, unknown> = {};
+  let settingsMalformed = false;
   if (existsSync(settingsPath)) {
     try {
       settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
     } catch {
-      // If settings.json is malformed, start fresh
+      settingsMalformed = true;
+      result.warnings.push(
+        'settings.json exists but is malformed — skipping settings merge to protect your config.\n' +
+        '    Fix the JSON in .claude/settings.json and re-run init.'
+      );
     }
   }
-  if (!settings.hooks) settings.hooks = {};
-  const hooksConfig = settings.hooks as Record<string, unknown>;
-  if (!hooksConfig.SessionStart) hooksConfig.SessionStart = [];
-  const sessionStartHooks = hooksConfig.SessionStart as Array<Record<string, unknown>>;
-  const hasJoycraftHook = sessionStartHooks.some(h => {
-    const innerHooks = h.hooks as Array<Record<string, unknown>> | undefined;
-    return innerHooks?.some(ih => typeof ih.command === 'string' && ih.command.includes('joycraft'));
-  });
-  if (!hasJoycraftHook) {
-    sessionStartHooks.push({
-      matcher: '',
-      hooks: [{
-        type: 'command',
-        command: 'node .claude/hooks/joycraft-version-check.mjs',
-      }],
+  if (!settingsMalformed) {
+    if (!settings.hooks) settings.hooks = {};
+    const hooksConfig = settings.hooks as Record<string, unknown>;
+    if (!hooksConfig.SessionStart) hooksConfig.SessionStart = [];
+    const sessionStartHooks = hooksConfig.SessionStart as Array<Record<string, unknown>>;
+    const hasJoycraftHook = sessionStartHooks.some(h => {
+      const innerHooks = h.hooks as Array<Record<string, unknown>> | undefined;
+      return innerHooks?.some(ih => typeof ih.command === 'string' && ih.command.includes('joycraft'));
     });
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
-    result.created.push(settingsPath);
-  }
+    if (!hasJoycraftHook) {
+      sessionStartHooks.push({
+        matcher: '',
+        hooks: [{
+          type: 'command',
+          command: 'node .claude/hooks/joycraft-version-check.mjs',
+        }],
+      });
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+      result.created.push(settingsPath);
+    }
 
-  // 8. Generate and merge permission rules into settings.json
-  const permissions = generatePermissions(stack);
-  // Re-read settings in case it was just created by hook step
-  if (existsSync(settingsPath)) {
-    try {
-      settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-    } catch {
-      // keep existing settings object
+    // 8. Generate and merge permission rules into settings.json
+    const permissions = generatePermissions(stack);
+    // Re-read settings in case it was just created by hook step
+    if (existsSync(settingsPath)) {
+      try {
+        settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+      } catch {
+        result.warnings.push(
+          'settings.json became unreadable after hook merge — skipping permissions merge.\n' +
+          '    Fix the JSON in .claude/settings.json and re-run init.'
+        );
+        settingsMalformed = true;
+      }
+    }
+    if (!settingsMalformed) {
+      if (!settings.permissions) settings.permissions = {};
+      const perms = settings.permissions as Record<string, string[]>;
+      if (!perms.allow) perms.allow = [];
+      if (!perms.deny) perms.deny = [];
+      for (const rule of permissions.allow) {
+        if (!perms.allow.includes(rule)) perms.allow.push(rule);
+      }
+      for (const rule of permissions.deny) {
+        if (!perms.deny.includes(rule)) perms.deny.push(rule);
+      }
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
     }
   }
-  if (!settings.permissions) settings.permissions = {};
-  const perms = settings.permissions as Record<string, string[]>;
-  if (!perms.allow) perms.allow = [];
-  if (!perms.deny) perms.deny = [];
-  for (const rule of permissions.allow) {
-    if (!perms.allow.includes(rule)) perms.allow.push(rule);
-  }
-  for (const rule of permissions.deny) {
-    if (!perms.deny.includes(rule)) perms.deny.push(rule);
-  }
-  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 
   // 9. Install safeguard hooks (PreToolUse deny-pattern blocking)
-  const hookResult = installSafeguardHooks(targetDir, [], opts.force);
+  const hookResult = installSafeguardHooks(targetDir, [], opts.force, settingsMalformed);
   result.created.push(...hookResult.created);
   result.skipped.push(...hookResult.skipped);
 
@@ -184,10 +213,10 @@ try {
   }
 
   // 11. Print summary
-  printSummary(result, stack);
+  printSummary(result, stack, existingSkills);
 }
 
-function printSummary(result: InitResult, stack: import('./detect.js').StackInfo): void {
+function printSummary(result: InitResult, stack: import('./detect.js').StackInfo, existingSkills: string[] = []): void {
   console.log('\nJoycraft initialized!\n');
 
   if (stack.language !== 'unknown') {
@@ -223,6 +252,10 @@ function printSummary(result: InitResult, stack: import('./detect.js').StackInfo
     for (const w of result.warnings) {
       console.log(`    ⚠ ${w}`);
     }
+  }
+
+  if (existingSkills.length > 0) {
+    console.log(`\n  Found existing skills: ${existingSkills.join(', ')}. These are preserved — Joycraft is additive.`);
   }
 
   const hasExistingClaude = result.skipped.some(f => f.endsWith('CLAUDE.md'));

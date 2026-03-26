@@ -130,7 +130,21 @@ This project uses holdout scenario tests in a separate private repo.
 The scenarios repo is deliberately invisible to you. This is the holdout guarantee — like a validation set in ML.`;
 }
 
-export function improveCLAUDEMd(existing: string, stack: StackInfo): string {
+function generateProjectToolsSection(existingSkills: string[]): string {
+  const MAX_LISTED = 10;
+  let skillList: string;
+  if (existingSkills.length <= MAX_LISTED) {
+    skillList = existingSkills.join(', ');
+  } else {
+    skillList = existingSkills.slice(0, MAX_LISTED).join(', ') +
+      `, and ${existingSkills.length - MAX_LISTED} more — see .claude/skills/`;
+  }
+  return `## Project Tools
+
+This project has additional tools beyond Joycraft. Always check \`.claude/skills/\` for available skills: ${skillList}`;
+}
+
+export function improveCLAUDEMd(existing: string, stack: StackInfo, existingSkills: string[] = []): string {
   const sections = parseSections(existing);
   const additions: string[] = [];
 
@@ -162,6 +176,10 @@ export function improveCLAUDEMd(existing: string, stack: StackInfo): string {
     additions.push(generateExternalValidationSection());
   }
 
+  if (existingSkills.length > 0 && !hasSection(sections, /project\s*tools/i)) {
+    additions.push(generateProjectToolsSection(existingSkills));
+  }
+
   if (additions.length === 0) {
     return existing;
   }
@@ -171,7 +189,7 @@ export function improveCLAUDEMd(existing: string, stack: StackInfo): string {
   return trimmed + '\n\n' + additions.join('\n\n') + '\n';
 }
 
-export function generateCLAUDEMd(projectName: string, stack: StackInfo): string {
+export function generateCLAUDEMd(projectName: string, stack: StackInfo, existingSkills: string[] = []): string {
   const frameworkNote = stack.framework ? ` (${stack.framework})` : '';
   const langLabel = stack.language === 'unknown' ? '' : ` | **Stack:** ${stack.language}${frameworkNote}`;
 
@@ -195,6 +213,10 @@ export function generateCLAUDEMd(projectName: string, stack: StackInfo): string 
     generateGettingStartedSection(),
     '',
   ];
+
+  if (existingSkills.length > 0) {
+    lines.push(generateProjectToolsSection(existingSkills), '');
+  }
 
   return lines.join('\n');
 }
