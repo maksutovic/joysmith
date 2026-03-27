@@ -135,4 +135,94 @@ describe('detectStack', () => {
       expect(result.language).toBe('node');
     });
   });
+
+  describe('Testing Strategy', () => {
+    it('Next.js gets playwright backbone', async () => {
+      const result = await detectStack(join(fixtures, 'node-npm'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('playwright');
+      expect(result.testingStrategy!.testFormat).toBe('.spec.ts');
+      expect(result.testingStrategy!.layers).toContain('ui');
+    });
+
+    it('Express gets api backbone', async () => {
+      const result = await detectStack(join(fixtures, 'node-express'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('api');
+      expect(result.testingStrategy!.testFormat).toBe('.test.ts');
+      expect(result.testingStrategy!.layers).toContain('api');
+      expect(result.testingStrategy!.layers).not.toContain('ui');
+    });
+
+    it('plain Node.js (pnpm, no web framework) gets native backbone', async () => {
+      const result = await detectStack(join(fixtures, 'node-pnpm'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('native');
+    });
+
+    it('React Native gets maestro backbone', async () => {
+      const result = await detectStack(join(fixtures, 'react-native'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('maestro');
+      expect(result.testingStrategy!.testFormat).toBe('.yaml');
+      expect(result.testingStrategy!.layers).toContain('ui');
+    });
+
+    it('Flutter gets maestro backbone', async () => {
+      const result = await detectStack(join(fixtures, 'flutter'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('maestro');
+      expect(result.testingStrategy!.testFormat).toBe('.yaml');
+    });
+
+    it('Xcode project gets maestro backbone', async () => {
+      const result = await detectStack(join(fixtures, 'xcode'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('maestro');
+    });
+
+    it('Python FastAPI gets api backbone', async () => {
+      const result = await detectStack(join(fixtures, 'python-poetry'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('api');
+    });
+
+    it('Rust with Actix (web framework) gets api backbone', async () => {
+      const result = await detectStack(join(fixtures, 'rust'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('api');
+    });
+
+    it('Go gets native backbone', async () => {
+      const result = await detectStack(join(fixtures, 'go'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('native');
+    });
+
+    it('Swift gets native backbone', async () => {
+      const result = await detectStack(join(fixtures, 'swift'));
+      expect(result.testingStrategy).toBeDefined();
+      expect(result.testingStrategy!.backbone).toBe('native');
+    });
+
+    it('web frameworks include all 4 layers', async () => {
+      const result = await detectStack(join(fixtures, 'node-npm'));
+      expect(result.testingStrategy!.layers).toEqual(['ui', 'api', 'logic', 'static']);
+    });
+
+    it('api frameworks include layers 1-3', async () => {
+      const result = await detectStack(join(fixtures, 'node-express'));
+      expect(result.testingStrategy!.layers).toEqual(['api', 'logic', 'static']);
+    });
+
+    it('native stacks include layers 1-2', async () => {
+      const result = await detectStack(join(fixtures, 'node-pnpm'));
+      expect(result.testingStrategy!.layers).toEqual(['logic', 'static']);
+    });
+
+    it('unknown stack has no testing strategy', async () => {
+      const result = await detectStack(join(fixtures, 'empty'));
+      expect(result.testingStrategy).toBeUndefined();
+    });
+  });
 });

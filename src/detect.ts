@@ -1,5 +1,11 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+export interface TestingStrategy {
+  backbone: 'playwright' | 'maestro' | 'api' | 'native';
+  testFormat: string;
+  layers: ('ui' | 'api' | 'logic' | 'static')[];
+}
 
 export interface StackInfo {
   language: string;
@@ -12,6 +18,23 @@ export interface StackInfo {
     deploy?: string;
   };
   framework?: string;
+  testingStrategy?: TestingStrategy;
+}
+
+const WEB_FRAMEWORKS = new Set(['Next.js', 'Nuxt', 'Remix', 'React', 'Vue', 'Svelte']);
+const API_FRAMEWORKS = new Set(['Express', 'Fastify', 'FastAPI', 'Django', 'Flask', 'Gin', 'Fiber', 'Echo', 'Actix', 'Axum', 'Rocket']);
+
+function buildTestingStrategy(backbone: TestingStrategy['backbone']): TestingStrategy {
+  switch (backbone) {
+    case 'playwright':
+      return { backbone, testFormat: '.spec.ts', layers: ['ui', 'api', 'logic', 'static'] };
+    case 'maestro':
+      return { backbone, testFormat: '.yaml', layers: ['ui', 'api', 'logic', 'static'] };
+    case 'api':
+      return { backbone, testFormat: '.test.ts', layers: ['api', 'logic', 'static'] };
+    case 'native':
+      return { backbone, testFormat: '.test.ts', layers: ['logic', 'static'] };
+  }
 }
 
 function readFile(path: string): string | null {
@@ -79,11 +102,24 @@ function detectNode(dir: string): StackInfo | null {
     commands.typecheck = 'tsc --noEmit';
   }
 
+  const allDeps = { ...(pkg.dependencies as Record<string, string> | undefined), ...(pkg.devDependencies as Record<string, string> | undefined) };
+  let testingStrategy: TestingStrategy;
+  if (allDeps['react-native']) {
+    testingStrategy = buildTestingStrategy('maestro');
+  } else if (framework && WEB_FRAMEWORKS.has(framework)) {
+    testingStrategy = buildTestingStrategy('playwright');
+  } else if (framework && API_FRAMEWORKS.has(framework)) {
+    testingStrategy = buildTestingStrategy('api');
+  } else {
+    testingStrategy = buildTestingStrategy('native');
+  }
+
   return {
     language: 'node',
     packageManager: pm,
     commands,
     framework,
+    testingStrategy,
   };
 }
 
@@ -116,6 +152,10 @@ function detectPython(dir: string): StackInfo | null {
     const framework = detectPythonFramework(pyproject);
     const hasPytest = /pytest/i.test(pyproject);
 
+    const testingStrategy = framework && API_FRAMEWORKS.has(framework)
+      ? buildTestingStrategy('api')
+      : buildTestingStrategy('native');
+
     return {
       language: 'python',
       packageManager: pm,
@@ -125,12 +165,17 @@ function detectPython(dir: string): StackInfo | null {
         lint: `${run} ruff check .`,
       },
       framework,
+      testingStrategy,
     };
   }
 
   const requirements = readFile(join(dir, 'requirements.txt'));
   if (requirements !== null) {
     const framework = detectPythonFramework(requirements);
+    const testingStrategy = framework && API_FRAMEWORKS.has(framework)
+      ? buildTestingStrategy('api')
+      : buildTestingStrategy('native');
+
     return {
       language: 'python',
       packageManager: 'pip',
@@ -140,6 +185,7 @@ function detectPython(dir: string): StackInfo | null {
         lint: 'python -m ruff check .',
       },
       framework,
+      testingStrategy,
     };
   }
 
@@ -155,6 +201,10 @@ function detectRust(dir: string): StackInfo | null {
   else if (/axum/.test(cargo)) framework = 'Axum';
   else if (/rocket/.test(cargo)) framework = 'Rocket';
 
+  const testingStrategy = framework && API_FRAMEWORKS.has(framework)
+    ? buildTestingStrategy('api')
+    : buildTestingStrategy('native');
+
   return {
     language: 'rust',
     packageManager: 'cargo',
@@ -164,6 +214,7 @@ function detectRust(dir: string): StackInfo | null {
       lint: 'cargo clippy',
     },
     framework,
+    testingStrategy,
   };
 }
 
@@ -176,6 +227,10 @@ function detectGo(dir: string): StackInfo | null {
   else if (/github\.com\/gofiber\/fiber/.test(gomod)) framework = 'Fiber';
   else if (/github\.com\/labstack\/echo/.test(gomod)) framework = 'Echo';
 
+  const testingStrategy = framework && API_FRAMEWORKS.has(framework)
+    ? buildTestingStrategy('api')
+    : buildTestingStrategy('native');
+
   return {
     language: 'go',
     packageManager: 'go',
@@ -185,6 +240,7 @@ function detectGo(dir: string): StackInfo | null {
       lint: 'golangci-lint run',
     },
     framework,
+    testingStrategy,
   };
 }
 
@@ -199,6 +255,46 @@ function detectSwift(dir: string): StackInfo | null {
       build: 'swift build',
       test: 'swift test',
     },
+    testingStrategy: buildTestingStrategy('native'),
+  };
+}
+
+function detectFlutter(dir: string): StackInfo | null {
+  const pubspec = readFile(join(dir, 'pubspec.yaml'));
+  if (pubspec === null) return null;
+  if (!/flutter/i.test(pubspec)) return null;
+
+  return {
+    language: 'dart',
+    packageManager: 'flutter',
+    commands: {
+      build: 'flutter build',
+      test: 'flutter test',
+      lint: 'flutter analyze',
+    },
+    framework: 'Flutter',
+    testingStrategy: buildTestingStrategy('maestro'),
+  };
+}
+
+function detectXcode(dir: string): StackInfo | null {
+  // Check for .xcodeproj or .xcworkspace directories
+  try {
+    const entries = readdirSync(dir);
+    const hasXcode = entries.some(e => e.endsWith('.xcodeproj') || e.endsWith('.xcworkspace'));
+    if (!hasXcode) return null;
+  } catch {
+    return null;
+  }
+
+  return {
+    language: 'swift',
+    packageManager: 'xcode',
+    commands: {
+      build: 'xcodebuild build',
+      test: 'xcodebuild test',
+    },
+    testingStrategy: buildTestingStrategy('maestro'),
   };
 }
 
@@ -236,7 +332,9 @@ export async function detectStack(dir: string): Promise<StackInfo> {
     detectPython,
     detectRust,
     detectGo,
+    detectFlutter,
     detectSwift,
+    detectXcode,
     detectMakefile,
     detectDockerfile,
   ];
