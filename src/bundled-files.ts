@@ -1890,13 +1890,59 @@ is required, though you can add one via the GitHub Checks API if you prefer.
 
 ---
 
+## Testing by Stack Type
+
+The scenario agent selects the appropriate test format based on the project's
+testing backbone. Each backbone tests the same holdout principle — observable
+behavior only, no source imports — but uses different tools.
+
+### Web Apps (Playwright)
+
+For Next.js, Vite, Nuxt, Remix, and other web frameworks. Tests run against a
+dev server or preview URL using a headless browser.
+
+- **Template:** \`example-scenario-web.spec.ts\`
+- **Config:** \`playwright.config.ts\`
+- **Package:** \`package-web.json\` (use instead of \`package.json\` for web projects)
+- **Run:** \`npx playwright test\`
+
+### Mobile Apps (Maestro)
+
+For React Native, Flutter, and native iOS/Android. Tests are declarative YAML
+flows that interact with a running app on a simulator.
+
+- **Template:** \`example-scenario-mobile.yaml\`
+- **Login sub-flow:** \`example-scenario-mobile-login.yaml\`
+- **Setup guide:** \`README-mobile.md\`
+- **Run:** \`maestro test example-scenario-mobile.yaml\`
+
+### API Backends (HTTP)
+
+For Express, FastAPI, Django, and other API-only backends. Tests send HTTP
+requests using Node.js built-in \`fetch\`.
+
+- **Template:** \`example-scenario-api.test.ts\`
+- **Run:** \`npx vitest run\`
+
+### CLI Tools & Libraries (native)
+
+For CLI tools, npm packages, and non-UI projects. Tests invoke the built
+binary via \`spawnSync\` and assert on stdout/stderr.
+
+- **Template:** \`example-scenario.test.ts\`
+- **Run:** \`npx vitest run\`
+
+---
+
 ## Adding scenarios
 
 ### Rules
 
-1. **Behavioral, not structural.** Test what the tool does, not how it is
-   built internally. Invoke the binary; assert on stdout, exit codes, and
-   filesystem state. Never import from \`../main-repo/src\`.
+These rules apply to ALL backbones:
+
+1. **Behavioral, not structural.** Test what the app does from a user's
+   perspective. For web: navigate and assert on content. For CLI: run commands
+   and check output. For API: send requests and check responses.
 
 2. **End-to-end.** Each test should represent something a real user would
    actually do. If you would not put it in a demo or docs example, reconsider
@@ -1906,9 +1952,8 @@ is required, though you can add one via the GitHub Checks API if you prefer.
    see source code. Any \`import\` that reaches into \`../main-repo/src\` breaks
    the pattern.
 
-4. **Independent.** Each test must be able to run in isolation. Use \`beforeEach\`
-   / \`afterEach\` to set up and tear down temp directories. Do not share mutable
-   state between tests.
+4. **Independent.** Each test must be able to run in isolation. No shared
+   mutable state between tests.
 
 5. **Deterministic.** Avoid network calls, timestamps, or random values in
    assertions unless the feature under test genuinely involves them.
@@ -1917,31 +1962,25 @@ is required, though you can add one via the GitHub Checks API if you prefer.
 
 \`\`\`
 \$SCENARIOS_REPO/
-├── example-scenario.test.ts   # Starter file — replace with real scenarios
+├── example-scenario.test.ts           # CLI/binary scenario template
+├── example-scenario-web.spec.ts       # Web app scenario template (Playwright)
+├── example-scenario-api.test.ts       # API backend scenario template
+├── example-scenario-mobile.yaml       # Mobile app scenario template (Maestro)
+├── example-scenario-mobile-login.yaml # Reusable login sub-flow
+├── playwright.config.ts               # Playwright config (web projects)
+├── package.json                       # Default (vitest for CLI/API)
+├── package-web.json                   # Alternative (Playwright for web)
+├── README-mobile.md                   # Mobile testing setup guide
 ├── workflows/
-│   └── run.yml                # CI workflow (do not rename)
-├── package.json
+│   ├── run.yml                        # CI workflow (do not rename)
+│   └── generate.yml                   # Scenario generation workflow
+├── prompts/
+│   └── scenario-agent.md              # Scenario agent instructions
 └── README.md
 \`\`\`
 
-Add new \`.test.ts\` files at the top level or in subdirectories. Vitest will
-discover them automatically.
-
-### Example structure
-
-\`\`\`ts
-import { spawnSync } from "node:child_process";
-import { join } from "node:path";
-
-const CLI = join(__dirname, "..", "main-repo", "dist", "cli.js");
-
-it("init creates a CLAUDE.md file", () => {
-  const tmp = mkdtempSync(join(tmpdir(), "scenario-"));
-  const { status } = spawnSync("node", [CLI, "init", tmp], { encoding: "utf8" });
-  expect(status).toBe(0);
-  expect(existsSync(join(tmp, "CLAUDE.md"))).toBe(true);
-});
-\`\`\`
+Use the template that matches your project's stack. Remove the ones you
+don't need.
 
 ---
 
@@ -1953,6 +1992,7 @@ it("init creates a CLAUDE.md file", () => {
 | Visible to agent | Yes | No |
 | What they test | Units, modules, logic | End-to-end behavior |
 | Import source code | Yes | Never |
+| Test method | Unit test framework | Depends on backbone (Playwright/Maestro/vitest/fetch) |
 | Run on every push | Yes | Yes (via dispatch) |
 | Purpose | Catch regressions fast | Validate real behavior |
 
@@ -2104,6 +2144,311 @@ describe("CLI: init command (example — replace with your real scenarios)", () 
 }
 `,
 
+  "scenarios/package-web.json": `{
+  "name": "\$SCENARIOS_REPO",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
+`,
+
+  "scenarios/playwright.config.ts": `import { defineConfig } from '@playwright/test';
+
+/**
+ * Playwright configuration for holdout scenario tests.
+ *
+ * BASE_URL can be set to test against a preview deployment URL
+ * or defaults to http://localhost:3000 for local dev server testing.
+ */
+export default defineConfig({
+  testDir: '.',
+  testMatch: '**/*.spec.ts',
+  timeout: 60_000,
+  retries: 0,
+  use: {
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    headless: true,
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+  ],
+});
+`,
+
+  "scenarios/example-scenario-web.spec.ts": `/**
+ * Example Web Scenario Test (Playwright)
+ *
+ * This file is a template for scenario tests against web applications.
+ * The holdout pattern applies: test the running app through its UI,
+ * never import source code from the main repo.
+ *
+ * The main repo is available at ../main-repo and is already built.
+ * Tests run against either:
+ *   - A dev server started from ../main-repo (default)
+ *   - A preview deployment URL (set BASE_URL env var)
+ *
+ * DO:
+ *   - Navigate to pages, click elements, fill forms, assert on visible content
+ *   - Use page.locator() with accessible selectors (role, text, test-id)
+ *   - Keep each test fully independent
+ *
+ * DON'T:
+ *   - Import from ../main-repo/src — that defeats the holdout
+ *   - Test internal implementation details
+ *   - Rely on specific CSS classes or DOM structure (use accessible selectors)
+ */
+
+import { test, expect } from '@playwright/test';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { join } from 'node:path';
+
+const MAIN_REPO = join(__dirname, '..', 'main-repo');
+let serverProcess: ChildProcess | undefined;
+
+/**
+ * Wait for a URL to become reachable.
+ */
+async function waitForServer(url: string, timeoutMs = 60_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok || res.status < 500) return;
+    } catch {
+      // Server not ready yet
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error(\`Server at \${url} did not become ready within \${timeoutMs}ms\`);
+}
+
+test.beforeAll(async () => {
+  // If BASE_URL is set, skip starting a dev server — test against the provided URL
+  if (process.env.BASE_URL) return;
+
+  serverProcess = spawn('npm', ['run', 'dev'], {
+    cwd: MAIN_REPO,
+    stdio: 'pipe',
+    env: { ...process.env, PORT: '3000' },
+  });
+
+  await waitForServer('http://localhost:3000');
+});
+
+test.afterAll(async () => {
+  if (serverProcess) {
+    serverProcess.kill('SIGTERM');
+    serverProcess = undefined;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Example scenarios — replace with real tests for your application
+// ---------------------------------------------------------------------------
+
+test.describe('Home page', () => {
+  test('loads successfully and shows main heading', async ({ page }) => {
+    await page.goto('/');
+    // Replace with your app's actual heading or key element
+    await expect(page.locator('h1')).toBeVisible();
+  });
+
+  test('navigates to a subpage', async ({ page }) => {
+    await page.goto('/');
+    // Replace with your app's actual navigation
+    // await page.click('text=About');
+    // await expect(page).toHaveURL(/\\/about/);
+    // await expect(page.locator('h1')).toContainText('About');
+  });
+});
+`,
+
+  "scenarios/example-scenario-api.test.ts": `/**
+ * Example API Scenario Test
+ *
+ * This file is a template for scenario tests against API-only backends.
+ * The holdout pattern applies: test the running server via HTTP requests,
+ * never import route handlers or source code from the main repo.
+ *
+ * The main repo is available at ../main-repo and is already built.
+ * Tests run against either:
+ *   - A server started from ../main-repo (default)
+ *   - A deployed URL (set BASE_URL env var)
+ *
+ * Uses Node.js built-in fetch — no additional HTTP client dependencies.
+ *
+ * DO:
+ *   - Send HTTP requests to endpoints, assert on status codes and response bodies
+ *   - Test realistic user actions (create, read, update, delete flows)
+ *   - Keep each test fully independent
+ *
+ * DON'T:
+ *   - Import from ../main-repo/src — that defeats the holdout
+ *   - Use supertest or similar tools that import the app directly
+ *   - Test internal implementation details
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { join } from 'node:path';
+
+const MAIN_REPO = join(__dirname, '..', 'main-repo');
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+let serverProcess: ChildProcess | undefined;
+
+/**
+ * Wait for a URL to become reachable.
+ */
+async function waitForServer(url: string, timeoutMs = 60_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok || res.status < 500) return;
+    } catch {
+      // Server not ready yet
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error(\`Server at \${url} did not become ready within \${timeoutMs}ms\`);
+}
+
+beforeAll(async () => {
+  // If BASE_URL is set externally, skip starting a server
+  if (process.env.BASE_URL) return;
+
+  serverProcess = spawn('npm', ['start'], {
+    cwd: MAIN_REPO,
+    stdio: 'pipe',
+    env: { ...process.env, PORT: '3000' },
+  });
+
+  await waitForServer(BASE_URL);
+}, 90_000);
+
+afterAll(() => {
+  if (serverProcess) {
+    serverProcess.kill('SIGTERM');
+    serverProcess = undefined;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Example scenarios — replace with real tests for your API
+// ---------------------------------------------------------------------------
+
+describe('API health', () => {
+  it('GET / returns a success status', async () => {
+    const res = await fetch(\`\${BASE_URL}/\`);
+    expect(res.status).toBeLessThan(500);
+  });
+});
+
+describe('API endpoints', () => {
+  it('GET /api/example returns JSON', async () => {
+    const res = await fetch(\`\${BASE_URL}/api/example\`);
+    // Replace with your actual endpoint
+    // expect(res.status).toBe(200);
+    // const body = await res.json();
+    // expect(body).toHaveProperty('data');
+  });
+
+  it('POST /api/example creates a resource', async () => {
+    // Replace with your actual endpoint and payload
+    // const res = await fetch(\\\`\\\${BASE_URL}/api/example\\\`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ name: 'test' }),
+    // });
+    // expect(res.status).toBe(201);
+    // const body = await res.json();
+    // expect(body).toHaveProperty('id');
+  });
+
+  it('returns 404 for unknown routes', async () => {
+    const res = await fetch(\`\${BASE_URL}/api/does-not-exist\`);
+    expect(res.status).toBe(404);
+  });
+});
+`,
+
+  "scenarios/example-scenario-mobile.yaml": `# Example Mobile Scenario Test (Maestro)
+#
+# This file is a template for scenario tests against mobile applications.
+# The holdout pattern applies: test the running app through its UI,
+# never reference source code from the main repo.
+#
+# Maestro tests are declarative YAML flows that interact with a running
+# app on a simulator/emulator. Install Maestro:
+#   curl -Ls "https://get.maestro.mobile.dev" | bash
+#
+# Run this flow:
+#   maestro test example-scenario-mobile.yaml
+#
+# DO:
+#   - Tap elements, fill inputs, assert on visible text
+#   - Use runFlow for reusable sub-flows (e.g., login)
+#   - Use assertWithAI for natural-language assertions
+#
+# DON'T:
+#   - Reference source code paths or internal identifiers
+#   - Depend on exact pixel positions (use text and accessibility labels)
+
+appId: com.example.myapp  # Replace with your app's bundle identifier
+name: "Core User Journey"
+tags:
+  - smoke
+  - holdout
+---
+# Step 1: Launch the app
+- launchApp
+
+# Step 2: Login (using a reusable sub-flow)
+- runFlow: example-scenario-mobile-login.yaml
+
+# Step 3: Verify the main screen loaded
+- assertVisible: "Home"
+
+# Step 4: Navigate to a feature
+# - tapOn: "Settings"
+# - assertVisible: "Account"
+
+# Step 5: AI-powered assertion (natural language)
+# - assertWithAI: "The main dashboard is visible with navigation tabs at the bottom"
+
+# Step 6: Go back
+# - back
+# - assertVisible: "Home"
+`,
+
+  "scenarios/example-scenario-mobile-login.yaml": `# Reusable Login Sub-Flow (Maestro)
+#
+# This flow handles authentication. Other flows include it via:
+#   - runFlow: example-scenario-mobile-login.yaml
+#
+# Replace the selectors and credentials with your app's actual login flow.
+
+appId: com.example.myapp
+name: "Login"
+---
+- assertVisible: "Sign In"
+- tapOn: "Email"
+- inputText: "test@example.com"
+- tapOn: "Password"
+- inputText: "testpassword123"
+- tapOn: "Log In"
+- assertVisible: "Home"  # Verify login succeeded
+`,
+
+  "scenarios/README-mobile.md": "# Mobile Scenario Testing with Maestro\n\nThis guide explains how to set up and run mobile holdout scenario tests using [Maestro](https://maestro.dev/).\n\n## Prerequisites\n\n- **Maestro CLI:** `curl -Ls \"https://get.maestro.mobile.dev\" | bash`\n- **Java 17+** (required by Maestro)\n- **Simulator/Emulator:**\n  - iOS: Xcode with iOS Simulator (macOS only)\n  - Android: Android Studio with an AVD configured\n\n> **Important:** Joycraft does not install Maestro or manage simulators. This is your responsibility.\n\n## Running Tests Locally\n\n```bash\n# Boot your simulator/emulator first, then:\nmaestro test example-scenario-mobile.yaml\n\n# Run all flows in a directory:\nmaestro test .maestro/\n```\n\n## Writing Flows\n\nMaestro flows are declarative YAML. Core commands:\n\n| Command | Purpose |\n|---------|--------|\n| `launchApp` | Start or restart the app |\n| `tapOn: \"text\"` | Tap an element by visible text or test ID |\n| `inputText: \"value\"` | Type into a focused field |\n| `assertVisible: \"text\"` | Assert an element is on screen |\n| `assertNotVisible: \"text\"` | Assert an element is NOT on screen |\n| `scroll` | Scroll down |\n| `back` | Press the back button |\n| `runFlow: file.yaml` | Run a reusable sub-flow |\n| `assertWithAI: \"description\"` | Natural-language assertion (AI-powered) |\n\n## CI Options\n\n### Option A: Maestro Cloud (paid, easiest)\n\nUpload your app binary and flows to Maestro Cloud. No simulator management.\n\n```yaml\n- uses: mobile-dev-inc/action-maestro-cloud@v2\n  with:\n    api-key: ${{ secrets.MAESTRO_API_KEY }}\n    app-file: app.apk  # or app.ipa\n    workspace: .\n```\n\n### Option B: Self-hosted emulator (free, more setup)\n\nSpin up an Android emulator on a Linux runner or iOS simulator on a macOS runner.\n\n> **Cost note:** macOS GitHub Actions runners are ~10x more expensive than Linux runners.\n\n## The Holdout Pattern\n\nThese tests live in the scenarios repo, separate from the main codebase. The scenario agent generates them from specs. They test observable behavior through the app's UI — never referencing source code or internal implementation.\n",
+
   "scenarios/prompts/scenario-agent.md": `You are a QA engineer working in a holdout test repository. You CANNOT access the main repository's source code. Your job is to write or update behavioral scenario tests based on specs that are pushed from the main repo.
 
 ## What You Have Access To
@@ -2111,7 +2456,23 @@ describe("CLI: init command (example — replace with your real scenarios)", () 
 - This scenarios repository (test files, \`specs/\` mirror, \`package.json\`)
 - The incoming spec (provided below)
 - A list of existing test files and spec mirrors (provided below)
-- The main repo is available at \`../main-repo\` and is already built — you can invoke its CLI or entry point via \`execSync\`/\`spawnSync\`, but you MUST NOT import from \`../main-repo/src\`
+- The main repo is available at \`../main-repo\` and is already built
+- The testing strategy for this project (provided below)
+
+## Testing Strategy
+
+This project uses the **\$TESTING_BACKBONE** testing backbone.
+
+Select the correct test format based on the backbone:
+
+| Backbone | Tool | Test Format | File Extension | How to Test |
+|----------|------|-------------|---------------|-------------|
+| \`playwright\` | Playwright | Browser-based E2E | \`.spec.ts\` | Navigate pages, click elements, assert on visible content |
+| \`maestro\` | Maestro | YAML flows | \`.yaml\` | Tap elements, fill inputs, assert on screen state |
+| \`api\` | fetch (Node.js built-in) | HTTP requests | \`.test.ts\` | Send requests to endpoints, assert on responses |
+| \`native\` | vitest + spawnSync | CLI/binary invocation | \`.test.ts\` | Run commands, assert on stdout/stderr/exit codes |
+
+If the backbone is not provided or unrecognized, default to \`native\`.
 
 ## Triage Decision Tree
 
@@ -2130,7 +2491,7 @@ If you SKIP, write a brief comment in the relevant test file (or a new one) expl
 - A new output format or file that gets generated
 - A new user-facing behavior that doesn't map to any existing test file
 
-Name the file after the feature area: \`[feature-area].test.ts\`. One feature area per test file.
+Name the file after the feature area using the correct extension for the backbone.
 
 ### UPDATE — Modify an existing test file if the spec:
 - Changes behavior that is already tested
@@ -2141,25 +2502,20 @@ Match to the most relevant existing test file by feature area.
 
 **If you are unsure whether a spec is user-facing, err on the side of writing a test.**
 
-## Test Writing Rules
+## Test Writing Rules (All Backbones)
 
-1. **Behavioral only.** Test observable output — stdout, stderr, exit codes, files created/modified on disk. Never test internal implementation details or import source modules.
+1. **Behavioral only.** Test observable behavior — what a real user would see. Never test internal implementation details or import source modules.
+2. **Each test is fully independent.** No shared mutable state between tests.
+3. **Assert on realistic user actions.** Write tests that reflect what a real user would do.
+4. **Never import from the parent repo's source.** If you find yourself writing \`import { ... } from '../main-repo/src/...'\`, stop — that defeats the holdout.
 
-2. **Use \`execSync\` or \`spawnSync\`.** Invoke the built binary at \`../main-repo/dist/cli.js\` (or whatever the main repo's entry point is). Check \`../main-repo/package.json\` to find the correct entry point if unsure.
+## Backbone: native (CLI/Binary)
 
-3. **Use vitest.** Import \`describe\`, \`it\`, \`expect\` from \`vitest\`. Use \`beforeEach\`/\`afterEach\` for temp directory setup/teardown.
-
-4. **Each test is fully independent.** No shared mutable state between tests. Each test that touches the filesystem gets its own temp directory via \`mkdtempSync\`.
-
-5. **Assert on realistic user actions.** Write tests that reflect what a real user would do — not what the implementation happens to do.
-
-6. **Never import from the parent repo's source.** If you find yourself writing \`import { ... } from '../main-repo/src/...'\`, stop — that defeats the holdout.
-
-## Test File Template
+Use when the project is a CLI tool, library, or has no web/mobile UI.
 
 \`\`\`typescript
-import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -2172,25 +2528,15 @@ function runCLI(args: string[], cwd?: string) {
     cwd: cwd ?? process.cwd(),
     env: { ...process.env, NO_COLOR: '1' },
   });
-  return {
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-    status: result.status ?? 1,
-  };
+  return { stdout: result.stdout ?? '', stderr: result.stderr ?? '', status: result.status ?? 1 };
 }
 
-describe('[feature area]: [behavior being tested]', () => {
+describe('[feature area]', () => {
   let tmpDir: string;
+  beforeEach(() => { tmpDir = mkdtempSync(join(tmpdir(), 'scenarios-')); });
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }); });
 
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'scenarios-'));
-  });
-
-  afterEach(() => {
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('[specific observable behavior]', () => {
+  it('[observable behavior]', () => {
     const { stdout, status } = runCLI(['command', 'args'], tmpDir);
     expect(status).toBe(0);
     expect(stdout).toContain('expected output');
@@ -2198,13 +2544,106 @@ describe('[feature area]: [behavior being tested]', () => {
 });
 \`\`\`
 
+## Backbone: playwright (Web Apps)
+
+Use when the project is a web application (Next.js, Vite, Nuxt, etc.).
+
+\`\`\`typescript
+import { test, expect } from '@playwright/test';
+
+// Tests run against BASE_URL (configured in playwright.config.ts)
+// The dev server is started automatically or BASE_URL points to a preview deploy
+
+test.describe('[feature area]', () => {
+  test('[observable behavior]', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('h1')).toBeVisible();
+  });
+
+  test('[user interaction]', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('[name="email"]', 'test@example.com');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/dashboard/);
+  });
+});
+\`\`\`
+
+## Backbone: api (API Backends)
+
+Use when the project is an API-only backend (Express, FastAPI, etc.).
+
+\`\`\`typescript
+import { describe, it, expect } from 'vitest';
+
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+
+describe('[feature area]', () => {
+  it('[endpoint behavior]', async () => {
+    const res = await fetch(\\\`\\\${BASE_URL}/api/endpoint\\\`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('data');
+  });
+
+  it('[error handling]', async () => {
+    const res = await fetch(\\\`\\\${BASE_URL}/api/not-found\\\`);
+    expect(res.status).toBe(404);
+  });
+});
+\`\`\`
+
+## Backbone: maestro (Mobile Apps)
+
+Use when the project is a mobile application (React Native, Flutter, native iOS/Android).
+
+\`\`\`yaml
+appId: com.example.myapp
+name: "[feature area]: [behavior being tested]"
+tags:
+  - holdout
+---
+- launchApp
+- tapOn: "Sign In"
+- inputText: "test@example.com"
+- tapOn: "Submit"
+- assertVisible: "Welcome"
+# Use assertWithAI for complex visual assertions:
+# - assertWithAI: "The dashboard shows a list of recent items"
+\`\`\`
+
+## Graceful Degradation
+
+If the primary backbone tool is not available in this repo, fall back to the next deepest testable layer:
+
+| Layer | What's Tested | When to Use |
+|-------|-------------|-------------|
+| **Layer 4: UI** | Full user flows through browser/simulator | \`@playwright/test\` or Maestro is installed |
+| **Layer 3: API** | HTTP requests against running server | Server can be started from \`../main-repo\` |
+| **Layer 2: Logic** | Unit tests via test runner | Test runner (vitest/jest) is available |
+| **Layer 1: Static** | Build, typecheck, lint | Build toolchain is available |
+
+**Fallback rules:**
+- If backbone is \`playwright\` but \`@playwright/test\` is NOT in this repo's \`package.json\`: fall back to \`api\` (fetch-based HTTP tests)
+- If backbone is \`maestro\` but no simulator context is available: fall back to \`api\` if a server can be started, else \`native\`
+- If backbone is \`api\` but no server start script exists: fall back to \`native\`
+- \`native\` is always available as the floor
+
+Start each test file with a comment indicating the testing layer:
+\`// Testing Layer: [4|3|2|1] - [UI|API|Logic|Static]\`
+
+If you fell back from the intended backbone, note this in your commit message:
+\`scenarios: [action] for [spec] (layer: [N], reason: [why])\`
+
 ## Checklist Before Committing
 
 - [ ] Decision: SKIP / NEW / UPDATE (and why)
+- [ ] Correct backbone selected (or fallback justified)
 - [ ] Tests assert on observable behavior, not implementation
 - [ ] No imports from \`../main-repo/src\`
-- [ ] Each test has its own temp directory if it touches the filesystem
-- [ ] File is named after the feature area, not the spec
+- [ ] Each test is independent (own temp dir, own state)
+- [ ] File uses the correct extension for the backbone
+- [ ] Testing layer comment at top of file
 `,
 
   "scenarios/workflows/generate.yml": `# Scenario Generation Workflow
@@ -2305,7 +2744,9 @@ jobs:
           ## Context
 
           Existing test files in this repo: \${{ steps.context.outputs.existing_tests }}
-          Existing spec mirrors: \${{ steps.context.outputs.existing_specs }}"
+          Existing spec mirrors: \${{ steps.context.outputs.existing_specs }}
+
+          Testing backbone: \${{ github.event.client_payload.testing_backbone || 'native' }}"
 
       # ── 7. Commit any changes the agent made ──────────────────────────────
       - name: Commit scenario changes
